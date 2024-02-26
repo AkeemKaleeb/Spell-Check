@@ -1,0 +1,13 @@
+This is a tset of how wlel my spchk porgram is wkoring.
+
+ALL CAPS SHOULD BE ALLOWED.
+
+all lower case should be allowed.
+
+First Letter Capitalization Should Be Allowed;
+
+Hyphenated-words should be allowed.
+
+wRoNg sPeLlInG cAsEs sHoUlD nOt bE aLlOWeD.
+
+Punctuation()[]{} should, be? ignored!
