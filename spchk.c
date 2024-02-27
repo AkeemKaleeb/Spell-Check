@@ -7,7 +7,65 @@
 #include <string.h>
 
 #define MAX_PATH_LENGTH 1000
+#define HASH_MAP_SIZE 100000
 #define DICTFILE "words.txt"
+
+typedef struct hashMapEntry {
+    char *key;
+    char *value;
+}Entry;
+
+typedef struct HashMap {
+    Entry * entries[HASH_MAP_SIZE];
+}HashMap;
+
+// hash function
+unsigned int hash(const char *key) {
+    unsigned int hash = 0;                          // sets up return hash value
+    for(int i = 0; key[i] != '\0'; i++) {           // works through the keys until null character
+        hash = 31 * hash + key[i];                  // assigns a hash value
+    }
+
+    return hash % HASH_MAP_SIZE;                    // returns the hash value based on the array size
+}
+
+// function to initializae a hashmap
+HashMap *createHashMap(){
+    HashMap *map = (HashMap*)malloc(sizeof(HashMap));
+    memset(map->entries, 0, sizeof(map->entries));
+    return map;
+}
+
+// function to enter a new entry into the hash map
+void put(HashMap *map, const char *key, const char *value) {
+    unsigned int index = hash(key);                             // establish an index given a key
+    Entry *entry = (Entry*)malloc(sizeof(Entry));               // initialize and allocate size for a new entry
+    entry->key = strdup(key);                                   // set the entry key to the parameter key
+    entry->value = strdup(value);                               // set the value to the parameter value
+    map->entries[index] = entry;                                // put the entry into the hashmap
+}
+
+// function to allow a specific entry to be retrieved from the hashmap
+char *get(HashMap *map, const char *key) {
+    unsigned int index = hash(key);                             // establish an index given a key for the hashmap
+    if(map->entries[index] == NULL) {                           // return NULL if there is no entry at the given position
+        return NULL;
+    }
+    return map->entries[index]->value;                          // if there is an entry, return the value
+}
+
+// function to free a hashmap from memory correctly
+void freeHashMap(HashMap *map) {
+    for(int i = 0; i < HASH_MAP_SIZE; i++) {
+        if(map->entries[i] != NULL) {
+            free(map->entries[i]->key);                         // free the key
+            free(map->entries[i]->value);                       // free the value
+            free(map->entries[i]);                              // free the entry
+        }
+    }
+
+    free(map);                                                  // free the map
+}
 
 
 // Find and Open Files -> Directory Traversal
@@ -82,7 +140,39 @@ void checkFile(const char *filePath) {
     fclose(dictFile);
 }
 
+// function to initialze a hash map for the dictionary words
+HashMap* initializeHashMap() {
+    FILE *dictFile = fopen("words.txt", "r");           // open the dictiionary in read only mode
+    if(dictFile == NULL) {                              // checks if the dictionary file is in the folder
+        perror("Error opening dictionary file");        // prints error if it is not
+        exit(EXIT_FAILURE);                             // exit the program
+    }
+
+    HashMap *map = createHashMap();                     // establish the hashmap
+
+    char word[MAX_PATH_LENGTH];                         // make an array of words
+    while(fscanf(dictFile, "%s", word) != EOF) {        // scan the full text file dictionary
+        put(map, word, word);                           // put every word into the hashmap
+    }
+
+    fclose(dictFile);                                   // close the dictionary to keep things clean
+    
+    return map;
+}
+
+
 int main(int argc, char *argv[]) {
-    checkFile("C:\\Users\\kaile\\Desktop\\Programming\\Programs\\CS214\\Assignment 2\\test.txt");
+    const char *searchWord = "example";         // example word to check for
+    HashMap *map = initializeHashMap();         // declare a hashmap
+    char *result = get(map, searchWord);        // checks if the word exists
+    if(result != NULL) {
+        printf("Word found: %s\n", result);     // prints the output if the word exists
+    }
+    else {
+        printf("Word not found\n");             // prints an error if the word is not found
+    }
+
+    freeHashMap(map);                           // free the hashmap
+
     return 0;
 }
