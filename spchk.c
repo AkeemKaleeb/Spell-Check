@@ -27,7 +27,6 @@ unsigned int hash(const char *key) {
     for(int i = 0; key[i] != '\0'; i++) {           // works through the keys until null character
         hash = 31 * hash + key[i];                  // assigns a hash value
     }
-
     return hash % HASH_MAP_SIZE;                    // returns the hash value based on the array size
 }
 
@@ -39,9 +38,9 @@ HashMap *createHashMap(){
 }
 
 // function to enter a new entry into the hash map
-void put(HashMap *map, const char *key, const char *value) {
+void put(HashMap *map, const char* key, const char* value) {
     unsigned int index = hash(key);                             // establish an index given a key
-    Entry *entry = (Entry*)malloc(sizeof(Entry));               // initialize and allocate size for a new entry
+    Entry* entry = (Entry*) malloc(sizeof(Entry));              // initialize and allocate size for a new entry
     entry->key = strdup(key);                                   // set the entry key to the parameter key
     entry->value = strdup(value);                               // set the value to the parameter value
     map->entries[index] = entry;                                // put the entry into the hashmap
@@ -68,7 +67,16 @@ void freeHashMap(HashMap *map) {
 
     free(map);                                                  // free the map
 }
+//to print all the keys and values of the Hash Map
+void printHashMap (HashMap *map ){
+    for (int i = 0; i < HASH_MAP_SIZE; i++){
+        if(map->entries[i] != NULL){
+            printf ("Key: %p\n", map->entries[i]->key);
+            printf ("Value: %p\n", map->entries[i]->value);
+        }
+    }
 
+}
 // function to initialze a hash map for the dictionary words
 HashMap* initializeHashMap(const char *dictPath) {
     int dictFile = open(dictPath, O_RDONLY);            // open the dictiionary in read only mode
@@ -111,6 +119,7 @@ void checkFile(const char *dictPath, const char *filePath, HashMap *map) {
     // TODO: Implement word comparison
     char word[MAX_PATH_LENGTH];
     ssize_t bytesRead;
+
     while((bytesRead = read(textFile, word, MAX_PATH_LENGTH - 1)) > 0) {
         // Compare the given word with the dictionary
         // Ignore punctuation
@@ -133,31 +142,34 @@ void searchdirectory(const char *dictPath, const char *dirPath, HashMap *map) {
         perror("Error opening directory");              // print error if it does not
         exit(EXIT_FAILURE);                             // exit program
     }
-
+    int dict = open(dictPath, O_RDONLY);                  // set a pointer to the directory path
+    if(dict == -1) {                                     // check if the directory exists
+        perror("Error opening directory");              // print error if it does not
+        exit(EXIT_FAILURE);                             // exit program
+    }
+    
     char buffer[MAX_PATH_LENGTH];
-    ssize_t bytesRead;
-    while((bytesRead = read(dir, buffer, MAX_PATH_LENGTH)) > 0) {
-        for(int i = 0; i < bytesRead; i++) {
-            if(buffer[i] == '\n') {
-                buffer[i] = '\0';
+    ssize_t bytesRead = 0;
+    while((bytesRead = read(dir, buffer, MAX_PATH_LENGTH)) > 0) {   //read the directory, buffer, maxPathLength? (i  have no idea)
+        for(int i = 0; i < bytesRead; i++) {        //counting the number of bytes in the directory
+            if(buffer[i] == '\n') {                 //what even is buffer
+                buffer[i] = '\0';                   //buffer
                 checkFile(*dictPath, buffer, map);
             }
         }
     }
-
-    if(bytesRead == -1) {
+    if(bytesRead == 0) {
         perror("Error reading directory");
         exit(EXIT_FAILURE);
     }
-
     close(dir);
+    close(dict);
 }
 
-int main(int argc, char *argv[]) {
     //argv[0]: spchk
     //argv[1]: dictionary path
     //argv[2-inf]: files to check
-
+int main(int argc, char *argv[]) {
     HashMap *map = initializeHashMap(argv[1]);
     
     if(argc < 3) {
@@ -166,7 +178,7 @@ int main(int argc, char *argv[]) {
     }
 
     searchdirectory(argv[1], argv[2], map);
-    freeHashMap(map);                           // free the hashmap
+    freeHashMap(map);    // free the hashmap
 
     return 0;
 }
