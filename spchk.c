@@ -2,9 +2,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-//#include <dirent.h>
-//#include <sys/stat.h>
 #include <string.h>
+#include <dirent.h>
 
 #define MAX_PATH_LENGTH 1000
 #define HASH_MAP_SIZE 1000
@@ -16,7 +15,7 @@ typedef struct hashMapEntry {
     char *value;    //the value of the entry
 }Entry;
 
-//am array of key-value pairs
+//an array of key-value pairs
 typedef struct HashMap {
     Entry* entries[HASH_MAP_SIZE];
 }HashMap;
@@ -30,155 +29,55 @@ unsigned int hash(const char *key) {
     return hash % HASH_MAP_SIZE;                    // returns the hash value based on the array size
 }
 
-// function to initializae a hashmap
-HashMap *createHashMap(){
-    HashMap *map = (HashMap*)malloc(sizeof(HashMap));
-    memset(map->entries, 0, sizeof(map->entries));
+//create a new HashMap
+void createHashMap (){
+    HashMap* map = (HashMap*) malloc (sizeof(HashMap));
+    memset (map -> entries, 0, sizeof(Entry));  //initialize map with 000s
     return map;
 }
+/*
+void put (HashMap * map, char * key, char * value){
+    int index = hash (key);
+    map->entries[index]->key = strcpy(key);
+    map->entries[index]->key = strcpy (value); 
+}
+*/
+//I'm not sure we want to use a HashMap here since it doesn't make logical sense
+//some of the data structures to consider would be here: https://stackoverflow.com/questions/10017808/best-data-structure-for-implementing-a-dictionary
 
-// function to enter a new entry into the hash map
-void put(HashMap *map, const char* key, const char* value) {
-    unsigned int index = hash(key);                             // establish an index given a key
-    Entry* entry = (Entry*) malloc(sizeof(Entry));              // initialize and allocate size for a new entry
-    entry->key = strdup(key);                                   // set the entry key to the parameter key
-    entry->value = strdup(value);                               // set the value to the parameter value
-    map->entries[index] = entry;                                // put the entry into the hashmap
+
+//When spchk is given a directory name as an argument, it will perform a recursive directory traversal
+//and check spelling in all files whose names end with “.txt”, but ignoring any files or directories whose
+//names begin with “.”
+
+//a function to return all the files in a specified directory whose names end with ".txt", but don't begin with "."
+int filesInDir(char* path){
+    DIR *dir;//creates an object of struct DIR
+    struct dirent * entry; //stores all the directory entries (ie, the files and subfolders in the directory)
+
+
+    if ((dir = opendir (path)) == NULL){
+        perror ("There was a problem opening the directory!\n");
+        return EXIT_FAILURE;
+    }
+
+    while (entry = readdir(dir) != NULL){ //while the entry we are reading from the directory is not null
+        printf ("%s/n", entry->d_name);
+    }
+    closedir(dir);
+    return EXIT_SUCCESS;
 }
 
-// function to allow a specific entry to be retrieved from the hashmap
-char *get(HashMap *map, const char *key) {
-    unsigned int index = hash(key);                             // establish an index given a key for the hashmap
-    if(map->entries[index] == NULL) {                           // return NULL if there is no entry at the given position
-        return NULL;
-    }
-    return map->entries[index]->value;                          // if there is an entry, return the value
-}
 
-// function to free a hashmap from memory correctly
-void freeHashMap(HashMap *map) {
-    for(int i = 0; i < HASH_MAP_SIZE; i++) {
-        if(map->entries[i] != NULL) {
-            free(map->entries[i]->key);                         // free the key
-            free(map->entries[i]->value);                       // free the value
-            free(map->entries[i]);                              // free the entry
-        }
-    }
-
-    free(map);                                                  // free the map
-}
-//to print all the keys and values of the Hash Map
-void printHashMap (HashMap *map ){
-    for (int i = 0; i < HASH_MAP_SIZE; i++){
-        if(map->entries[i] != NULL){
-            printf ("Key: %p\n", map->entries[i]->key);
-            printf ("Value: %p\n", map->entries[i]->value);
-        }
-    }
-
-}
-// function to initialze a hash map for the dictionary words
-HashMap* initializeHashMap(const char *dictPath) {
-    int dictFile = open(dictPath, O_RDONLY);            // open the dictiionary in read only mode
-    if(dictFile == -1) {                                // checks if the dictionary file is in the folder
-        perror("Error opening dictionary file");        // prints error if it is not
-        exit(EXIT_FAILURE);                             // exit the program
-    }
-
-    HashMap *map = createHashMap();                                             // establish the hashmap
-
-    char word[MAX_PATH_LENGTH];                                                 // make an array of words
-    ssize_t bytesRead;
-    while((bytesRead = read(dictFile, word, MAX_PATH_LENGTH - 1) > 0)) {        // scan the full text file dictionary
-        word[bytesRead] = '\0';
-        put(map, word, word);                                                   // put every word into the hashmap
-    }
-
-    close(dictFile);                                                           // close the dictionary to keep things clean
-    
-    return map;
-}
-
-// Checking if each word in a given filepath is contained in the dictionary
-void checkFile(const char *dictPath, const char *filePath, HashMap *map) {
-    // open the dictionary file
-    int dictFile = open(dictPath, O_RDONLY);            // set a pointer to the dictionary file in read only mode
-    if(dictFile == -1) {                                // check if the dictionary file exists in the project
-        perror("Error opening dictionary file");        // print error if it does not
-        exit(EXIT_FAILURE);                             // exit program
-    }
-
-    // open the text file
-    int textFile = open(filePath, O_RDONLY);            // set a pointer to the provided text file in read only mode
-    if(textFile == -1) {                                // check if the text file exists
-        perror("Error opening text file");              // print error if it does not
-        exit(EXIT_FAILURE);                             // exit program
-    }
-
-    // Read words from the text file and compare with the dictionary
-    // TODO: Implement word comparison
-    char word[MAX_PATH_LENGTH];
-    ssize_t bytesRead;
-
-    while((bytesRead = read(textFile, word, MAX_PATH_LENGTH - 1)) > 0) {
-        // Compare the given word with the dictionary
-        // Ignore punctuation
-        // Allowed lowercase, Firstcase, ALLCAPS, hypenated-words
-        // Just printing the word right now to show it is functional
-        word[bytesRead] = '\0';
-        printf("%s\n", word);
-    }
-
-    // Close all files
-    close(textFile);
-    close(dictFile);
-}
-
-// Find and Open Files -> Directory Traversal
-// Reading the file and generating a sequence of position-annotated words
-void searchdirectory(const char *dictPath, const char *dirPath, HashMap *map) {
-    int dir = open(dirPath, O_RDONLY);                  // set a pointer to the directory path
-    if(dir == -1) {                                     // check if the directory exists
-        perror("Error opening directory");              // print error if it does not
-        exit(EXIT_FAILURE);                             // exit program
-    }
-    int dict = open(dictPath, O_RDONLY);                  // set a pointer to the directory path
-    if(dict == -1) {                                     // check if the directory exists
-        perror("Error opening directory");              // print error if it does not
-        exit(EXIT_FAILURE);                             // exit program
-    }
-    
-    char buffer[MAX_PATH_LENGTH];
-    ssize_t bytesRead = 0;
-    while((bytesRead = read(dir, buffer, MAX_PATH_LENGTH)) > 0) {   //read the directory, buffer, maxPathLength? (i  have no idea)
-        for(int i = 0; i < bytesRead; i++) {        //counting the number of bytes in the directory
-            if(buffer[i] == '\n') {                 //what even is buffer
-                buffer[i] = '\0';                   //buffer
-                checkFile(*dictPath, buffer, map);
-            }
-        }
-    }
-    if(bytesRead == 0) {
-        perror("Error reading directory");
-        exit(EXIT_FAILURE);
-    }
-    close(dir);
-    close(dict);
-}
-
+int main(int argc, char *argv[]) {
     //argv[0]: spchk
     //argv[1]: dictionary path
-    //argv[2-inf]: files to check
-int main(int argc, char *argv[]) {
-    HashMap *map = initializeHashMap(argv[1]);
+    //argv[2-inf]: directory path
     
     if(argc < 3) {
         fprintf(stderr, "Usage: %s <directory_path>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-
-    searchdirectory(argv[1], argv[2], map);
-    freeHashMap(map);    // free the hashmap
-
+    filesInDir(argv[2]);
     return 0;
 }
