@@ -4,6 +4,159 @@
 #include <fcntl.h>
 #include <string.h>
 
+#define ALPHABET_SIZE 26
+#define MAX_WORD_SIZE 100
+
+typedef struct trie_node{
+    struct trie_node *children[ALPHABET_SIZE * 2];  // account for capital and lowercase letters
+}trieNode;
+
+typedef struct trie{
+    trieNode root;
+} dictTrie;
+
+struct trie dictionary;                 // dictionary trie being used
+
+// Initialise the dictionary trie
+dictTrie initialiseDictionary() {
+    dictionary = (struct trie) {};     // zeroes out the tree 
+}
+
+// Function to convert letters to integer values based upon its alphabetical position
+// Returns -1 if the character is not in the alphabet
+int letterToInt(char letter){
+    if(letter >= 'A' && letter <= 'Z') {
+        return letter - 'A' + 26;
+    }
+    else if(letter >= 'a' && letter <= 'z') {
+        return letter - 'a';
+    }
+    return -1;
+}
+
+// Function to remove invalid characters at the end of a word
+void removeInvalidCharacters(const char* word) {
+
+}
+
+// Function to insert word into the trie
+int put(trieNode *node, const char *word) {
+    for(int i = 0; i < strlen(word); i++) {
+        int letter = letterToInt(word[i]);
+        if(letter == -1) {
+            printf("Invalid character in the dictionary");
+            return EXIT_FAILURE;
+        }
+
+        trieNode *parent = node;
+        node = node->children[letter];
+
+        if(!node) {
+            node = malloc(sizeof(struct trie_node));
+            parent->children[letter] = node;
+        }
+    }
+
+    return EXIT_SUCCESS;
+}
+
+// Travers the trie from the root node to search for a word
+char *get(trieNode *node, const char *word) {
+    for(int i = 0; i < strlen(word); i++) {
+        int letter = letterToInt(word[i]);
+        if(letter == -1) {
+            return EXIT_FAILURE;
+        }
+
+        node = node->children[letter];
+        if(!node) {
+            printf("Word not found in dictionary");
+            return EXIT_FAILURE;   // word not found
+        }
+    }
+
+    return ("Word found: %s\n", word);
+}
+
+// Function to fill the dictionary trie
+int fillDictionary(const char *dictPath)  {
+    int file = open(dictPath, O_RDONLY);
+    if(file == -1) {
+        printf("Could not find/open dictionary \"%S\"\n", dictPath);
+    }
+
+    char buffer[MAX_WORD_SIZE + 2];     // +2 for space and newline characters
+    int count = 0;
+
+    while(1) {
+        int bytesRead = read(file, buffer, sizeof(buffer) - 1);     // read a line from the file
+
+        if(bytesRead == -1) {
+            perror("Error reading file");
+            close(file);
+            return EXIT_FAILURE;
+        }
+        else if(bytesRead == 0) {           // EOF
+            break;
+        }
+
+        buffer[bytesRead] = '\0';           // Null-terminate the buffer
+
+        char *word = strtok(buffer, " ");
+
+        if(!word) {
+            printf("Error parsing line: %s\n", buffer);
+            close(file);
+            return EXIT_FAILURE;
+        }
+
+        // Insert the word into the trie
+        if(!put(&dictionary.root, word)) {
+            close(file);
+            return EXIT_FAILURE;
+        }
+        else{
+            count++;
+        }     
+    }
+
+    close(file);
+    printf("Parsed Dictionary \"%s\" with %i entries\n", dictPath, count);
+    return EXIT_SUCCESS;
+}
+
+// Helper method to free a node
+void freeNode(trieNode *node) {
+    if(!node) {
+        return;
+    }
+
+    for(int i = 0; i < ALPHABET_SIZE * 2; i++) {
+        freeNode(node->children[i]);
+    }
+
+    free(node);
+}
+
+// Function to free the trie
+void freeTrie() {
+    freeNode(&dictionary.root);
+}
+
+int main() {
+
+
+    return 0;
+}
+
+
+/*
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
+
 #define MAX_PATH_LENGTH 1000
 #define HASH_MAP_SIZE 105000
 #define DICTFILE "words.txt"
@@ -166,7 +319,7 @@ int main(int argc, char *argv[]) {
     //argv[1]: dictionary path
     //argv[2-inf]: files to check
 
-    //HashMap *map = initializeHashMap("words.txt");
+    HashMap *map = initializeHashMap("words.txt");
     
     /*if(argc < 3) {
         fprintf(stderr, "Usage: %s <directory_path>\n", argv[0]);
@@ -178,12 +331,13 @@ int main(int argc, char *argv[]) {
     //freeHashMap(map);                           // free the hashmap
 
     
-    int dictFile = open("words.txt", O_RDONLY);
+    /*int dictFile = open("words.txt", O_RDONLY);
     char word[MAX_PATH_LENGTH];                                                 // make an array of words
     ssize_t bytesRead;
     while((bytesRead = read(dictFile, word, MAX_PATH_LENGTH - 1) > 0)) {        // scan the full text file dictionary
         printf("%s\n", word);
-    }
-
+    }*/
+/*
     return 0;
 }
+*/
