@@ -11,11 +11,11 @@
 // DONE: Check hypenated words, one on each side
 // Compare with capitalization if it does not match
 // DONE: Report errors based on incorrect spelling
-// Include line and column number
+// DONE: Include line and column number
 
 // Find and open all specified files including directory traversal
-// Reading the file and generating a sequence of position annotated words
-// Checking whether a word is contained in the dictionary
+// DONE: Reading the file and generating a sequence of position annotated words
+// DONE: Checking whether a word is contained in the dictionary
 
 // Program Start
 #include <stdio.h>

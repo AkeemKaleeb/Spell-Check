@@ -6,3 +6,5 @@ Programming Assignment #2
 
 # SpellCheckProject
  This project will create a spell checker to detect which words are spelt incorrectly given a dictionary of words and a file or multiple to read from and traverse. It takes in a dictionary path and directories or individual text files and searches through every text file recursively, reporting back any words that cannot be found within the dictionary.
+
+ If a word is found to not match a word in the dictionary, an error is printed to the console including the file name, the row number, the column number, and the word that was misspelt.
