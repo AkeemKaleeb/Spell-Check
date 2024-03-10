@@ -212,8 +212,19 @@ bool checkFile(const char* textPath, dictNode *root) {
     char word[BUFFER_SIZE];             // Buffer to store a single word
     int wordLength = 0;                 // Length of the word stored
 
+    int row = 1;    // Row number of error
+    int col = 0;    // Column number of error
+
     while((bytesRead = read(text_FD, buffer, BUFFER_SIZE)) > 0) {       // Loop through the file
         for(int i = 0; i < bytesRead; i++) {    // Loop through the word
+            if(buffer[i] == '\n') {             // Increment row counter every new line
+                row++;
+                col = 1;
+            }
+            else {
+                col++;
+            }
+            
             // End of word, insert to Trie
             if(!(('a' <= buffer[i] && 'z' >= buffer[i]) ||
                 ('A' <= buffer[i] && 'Z' >= buffer[i]))) 
@@ -223,7 +234,7 @@ bool checkFile(const char* textPath, dictNode *root) {
                     bool wordExists = searchTrie(root, word);       // Search the Trie for the existence of the word
 
                     if(!wordExists) {                               // If the word does not exist
-                        printf("%s (): %s\n", textPath, word);
+                        printf("%s (%d, %d): %s\n", textPath, row, col - wordLength, word);
                     }
 
                     wordLength = 0;                                 // Reset word length for next word
