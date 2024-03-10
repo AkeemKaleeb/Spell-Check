@@ -45,7 +45,6 @@ void put (HashMap * map, char * key, char * value){
 //I'm not sure we want to use a HashMap here since it doesn't make logical sense
 //some of the data structures to consider would be here: https://stackoverflow.com/questions/10017808/best-data-structure-for-implementing-a-dictionary
 
-
 //When spchk is given a directory name as an argument, it will perform a recursive directory traversal
 //and check spelling in all files whose names end with “.txt”, but ignoring any files or directories whose
 //names begin with “.”
@@ -61,12 +60,15 @@ int filesInDir(char* path){
         return EXIT_FAILURE;
     }
 
-    while (entry = readdir(dir) != NULL){ //while the entry we are reading from the directory is not null
-        printf ("%s/n", entry->d_name);
+    while ((entry = readdir(dir)) != NULL){ //while the entry we are reading from the directory is not null
+        if ((strstr(entry->d_name, ".txt")!= NULL) && entry->d_name[0] != '.'){
+            printf ("\n%s\n", entry->d_name);
+        }
     }
     closedir(dir);
     return EXIT_SUCCESS;
 }
+
 
 
 int main(int argc, char *argv[]) {
