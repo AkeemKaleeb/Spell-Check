@@ -5,12 +5,13 @@
 // DONE: Read Dictionary File
 // DONE: Fill Trie - Based on term "Retrieval"
 // Locate Directory
-// Read Directory Text Files
-// Remove trailing punctuation
+// DONE: Read Directory Text Files
+// DONE: Remove trailing punctuation
 // DONE: Compare word against dictionary words
-// Check hypenated words, one on each side
+// DONE: Check hypenated words, one on each side
 // Compare with capitalization if it does not match
-// Report errors based on incorrect spelling
+// DONE: Report errors based on incorrect spelling
+// Include line and column number
 
 // Find and open all specified files including directory traversal
 // Reading the file and generating a sequence of position annotated words
@@ -197,12 +198,7 @@ bool fillDictionary(const char* dictPath, dictNode **root) {
     return true;
 }
 
-// #endregion
-
-/***************************************************************************************************/
-/********************************THE ABOVE CODE WORKS AS INTENDED***********************************/
-/***************************************************************************************************/
-
+// Function that checks an individual text file's words against a provided dictionary
 bool checkFile(const char* textPath, dictNode *root) {
     int text_FD = open(textPath, O_RDONLY);                 // Open the dictionary in read only mode
 
@@ -242,6 +238,14 @@ bool checkFile(const char* textPath, dictNode *root) {
     close(text_FD);
     return true;
 }
+
+// #endregion
+
+/***************************************************************************************************/
+/********************************THE ABOVE CODE WORKS AS INTENDED***********************************/
+/***************************************************************************************************/
+
+
 
 
 

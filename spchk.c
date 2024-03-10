@@ -1,343 +1,272 @@
+// MUST USE POSIX read() write() open() close() etc.
+// TODO:
+// ./spchk ../dict ../testfile
+
+// DONE: Read Dictionary File
+// DONE: Fill Trie - Based on term "Retrieval"
+// Locate Directory
+// DONE: Read Directory Text Files
+// DONE: Remove trailing punctuation
+// DONE: Compare word against dictionary words
+// DONE: Check hypenated words, one on each side
+// Compare with capitalization if it does not match
+// DONE: Report errors based on incorrect spelling
+// Include line and column number
+
+// Find and open all specified files including directory traversal
+// Reading the file and generating a sequence of position annotated words
+// Checking whether a word is contained in the dictionary
+
+// Program Start
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include <stdbool.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 
-#define ALPHABET_SIZE 26
-#define MAX_WORD_SIZE 100
+#define NUM_CHAR 256            // Capital, Lowercase, space, new line
+#define BUFFER_SIZE 1024        // Read buffer to reduce SYS Calls
 
-typedef struct trie_node{
-    struct trie_node *children[ALPHABET_SIZE * 2];  // account for capital and lowercase letters
-}trieNode;
+#define DICTFILE "words.txt"
+#define TEXTFILE "test.txt"
 
-typedef struct trie{
-    trieNode root;
-} dictTrie;
+// #region TRIE
 
-struct trie dictionary;                 // dictionary trie being used
+typedef struct trienode
+{
+    struct trienode *children[NUM_CHAR];
+    bool terminal; // node is the end of a word
+} dictNode;
 
-// Initialise the dictionary trie
-dictTrie initialiseDictionary() {
-    dictionary = (struct trie) {};     // zeroes out the tree 
-}
+// function to create a new node in the trie
+// allocates space for the new node and the children to NULL values
+dictNode *createNode()
+{
+    dictNode *newNode = malloc(sizeof(*newNode)); // allocate space for a new node
 
-// Function to convert letters to integer values based upon its alphabetical position
-// Returns -1 if the character is not in the alphabet
-int letterToInt(char letter){
-    if(letter >= 'A' && letter <= 'Z') {
-        return letter - 'A' + 26;
-    }
-    else if(letter >= 'a' && letter <= 'z') {
-        return letter - 'a';
-    }
-    return -1;
-}
-
-// Function to remove invalid characters at the end of a word
-void removeInvalidCharacters(const char* word) {
-
-}
-
-// Function to insert word into the trie
-int put(trieNode *node, const char *word) {
-    for(int i = 0; i < strlen(word); i++) {
-        int letter = letterToInt(word[i]);
-        if(letter == -1) {
-            printf("Invalid character in the dictionary");
-            return EXIT_FAILURE;
-        }
-
-        trieNode *parent = node;
-        node = node->children[letter];
-
-        if(!node) {
-            node = malloc(sizeof(struct trie_node));
-            parent->children[letter] = node;
-        }
+    for (int i = 0; i < NUM_CHAR; i++)
+    {
+        newNode->children[i] = NULL; // initialize the new node to null characters
     }
 
-    return EXIT_SUCCESS;
+    newNode->terminal = false; // new node will not be terminal by default
+    return newNode;            // return the new node
 }
 
-// Travers the trie from the root node to search for a word
-char *get(trieNode *node, const char *word) {
-    for(int i = 0; i < strlen(word); i++) {
-        int letter = letterToInt(word[i]);
-        if(letter == -1) {
-            return EXIT_FAILURE;
-        }
-
-        node = node->children[letter];
-        if(!node) {
-            printf("Word not found in dictionary");
-            return EXIT_FAILURE;   // word not found
-        }
+// function to insert a new node into the trie
+// false implies the node already exists
+// true implies the node was inserted
+bool insertTrie(dictNode **root, char *signedText)
+{
+    if (*root == NULL)
+    {
+        *root = createNode(); // Create a new root if one doesn't exist
     }
 
-    return ("Word found: %s\n", word);
+    unsigned char *text = (unsigned char *)signedText; // Prevents negative index in table
+    dictNode *tmp = *root;
+    int length = strlen(signedText);
+
+    for (int i = 0; i < length; i++)
+    {
+        if (tmp->children[text[i]] == NULL)
+        { // Create a new node if it does not exist
+            tmp->children[text[i]] = createNode();
+        }
+        tmp = tmp->children[text[i]]; // Moves the temp pointer to look at the appropriate child node
+    }
+
+    if (tmp->terminal)
+    {
+        return false; // checks if the word already exists
+    }
+    else
+    {
+        tmp->terminal = true; // there was a node for this word, make it terminal
+        return true;
+    }
 }
 
-// Function to fill the dictionary trie
-int fillDictionary(const char *dictPath)  {
-    int file = open(dictPath, O_RDONLY);
-    if(file == -1) {
-        printf("Could not find/open dictionary \"%S\"\n", dictPath);
+// Recursive print function to print out the word in a trie
+void printTrie_Recursive(dictNode *node, unsigned char *prefix, int length, int *wordNumber)
+{
+    unsigned char newPrefix[length + 2]; // One more symbol and null character
+    memcpy(newPrefix, prefix, length);   // Copies the previous word to the new prefix with two extra spaces
+    newPrefix[length + 1] = 0;           // null terminate the string
+
+    if (node->terminal)
+    { // Base Case, word complete
+        printf("WORD [%d]: %s\n", *wordNumber, prefix);
+        (*wordNumber)++;
     }
 
-    char buffer[MAX_WORD_SIZE + 2];     // +2 for space and newline characters
-    int count = 0;
-
-    while(1) {
-        int bytesRead = read(file, buffer, sizeof(buffer) - 1);     // read a line from the file
-
-        if(bytesRead == -1) {
-            perror("Error reading file");
-            close(file);
-            return EXIT_FAILURE;
+    for (int i = 0; i < NUM_CHAR; i++)
+    { // Traverse all possible nodes
+        if (node->children[i] != NULL)
+        {                                                                               // Check if a node has something worth checking
+            newPrefix[length] = i;                                                      // Sets the value to be checked
+            printTrie_Recursive(node->children[i], newPrefix, length + 1, wordNumber);  // Recursively loop through the trie
         }
-        else if(bytesRead == 0) {           // EOF
-            break;
-        }
-
-        buffer[bytesRead] = '\0';           // Null-terminate the buffer
-
-        char *word = strtok(buffer, " ");
-
-        if(!word) {
-            printf("Error parsing line: %s\n", buffer);
-            close(file);
-            return EXIT_FAILURE;
-        }
-
-        // Insert the word into the trie
-        if(!put(&dictionary.root, word)) {
-            close(file);
-            return EXIT_FAILURE;
-        }
-        else{
-            count++;
-        }     
     }
-
-    close(file);
-    printf("Parsed Dictionary \"%s\" with %i entries\n", dictPath, count);
-    return EXIT_SUCCESS;
 }
 
-// Helper method to free a node
-void freeNode(trieNode *node) {
-    if(!node) {
+// Function to print out the trie in ASCII-betical order
+void printTrie(dictNode *root)
+{
+    if (root == NULL)
+    { // Special case for when the TRIE is empty
+        printf("TRIE EMPTY\n");
         return;
     }
 
-    for(int i = 0; i < ALPHABET_SIZE * 2; i++) {
-        freeNode(node->children[i]);
+    int wordNumber = 1;     // Start with the first word
+    printTrie_Recursive(root, NULL, 0, &wordNumber); // Call to recursive print function
+}
+
+// Function to search if the word exists within the trie
+// True implies the word exists
+// False implies the word does not exist
+bool searchTrie(dictNode *root, char *signedText)
+{
+    unsigned char *text = (unsigned char *)signedText; // Prevents negative indexes in the table
+    int length = strlen(signedText);                   // How long is the word we are searching for
+    dictNode *tmp = root;                              // Temporary node, initialized to the root
+
+    for (int i = 0; i < length; i++)
+    { // Search trie character by character
+        if (tmp->children[text[i]] == NULL)
+        {                 // Check if the ith character in the word exists
+            return false; // Return false if the word does not exist
+        }
+        tmp = tmp->children[text[i]]; // Search the next node based on the next character
+    }
+
+    return tmp->terminal; // Returns true only if the final node is terminal: the word exists and is not a substring of another word
+}
+
+// Function to recursively free the Trie
+void freeTrie(dictNode *node) {
+    if(node == NULL) {
+        return;
+    }
+
+    for(int i = 0; i < NUM_CHAR; i++) {
+        freeTrie(node->children[i]);
     }
 
     free(node);
-}
+} 
 
-// Function to free the trie
-void freeTrie() {
-    freeNode(&dictionary.root);
-}
+// #endregion
 
-int main() {
+// #region FILES
 
+// Function to fill the dictionary Trie
+// True implies dictionary was filled successfully
+// False implies dictionary was not filled successfully
+bool fillDictionary(const char* dictPath, dictNode **root) {
+    int dictionary_FD = open(dictPath, O_RDONLY);               // Open the dictionary in read only mode
 
-    return 0;
-}
-
-
-/*
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-
-#define MAX_PATH_LENGTH 1000
-#define HASH_MAP_SIZE 105000
-#define DICTFILE "words.txt"
-#define TESTFILE "test.txt"
-
-typedef struct hashMapEntry {
-    char *key;
-    char *value;
-}Entry;
-
-typedef struct HashMap {
-    Entry * entries[HASH_MAP_SIZE];
-}HashMap;
-
-// hash function
-unsigned int hash(const char *key) {
-    unsigned int hash = 0;                          // sets up return hash value
-    for(int i = 0; key[i] != '\0'; i++) {           // works through the keys until null character
-        hash = 31 * hash + key[i];                  // assigns a hash value
+    if(dictionary_FD == -1) {                                   // Prints an error if the dictionary cannot be opened
+        perror("Dictionary could not be opened!\n");
+        return EXIT_FAILURE;
     }
 
-    return hash % HASH_MAP_SIZE;                    // returns the hash value based on the array size
-}
+    char buffer[BUFFER_SIZE];           // Buffer to reduce sys calls
+    int bytesRead;                      // number of bytes read so far
+    char word[BUFFER_SIZE];             // Buffer to store a single word
+    int wordLength = 0;                 // Length of the word stored
 
-// function to initializae a hashmap
-HashMap *createHashMap(){
-    HashMap *map = (HashMap*)malloc(sizeof(HashMap));
-    memset(map->entries, 0, sizeof(map->entries));
-    return map;
-}
-
-// function to enter a new entry into the hash map
-void put(HashMap *map, char *key, char *value) {
-    unsigned int index = hash(key);                             // establish an index given a key
-    Entry *entry = (Entry*)malloc(sizeof(Entry));               // initialize and allocate size for a new entry
-    if(!entry) {
-        perror("Error allocating memory for entry");
-    }
-    entry->key = strdup(key);                                           // set the entry key to the parameter key
-    entry->value = strdup(value);                                       // set the value to the parameter value
-    map->entries[index] = entry;                                // put the entry into the hashmap
-}
-
-// function to allow a specific entry to be retrieved from the hashmap
-char *get(HashMap *map, const char *key) {
-    unsigned int index = hash(key);                             // establish an index given a key for the hashmap
-    if(map->entries[index] == NULL) {                           // return NULL if there is no entry at the given position
-        return NULL;
-    }
-    return map->entries[index]->value;                          // if there is an entry, return the value
-}
-
-// function to free a hashmap from memory correctly
-void freeHashMap(HashMap *map) {
-    for(int i = 0; i < HASH_MAP_SIZE; i++) {
-        if(map->entries[i] != NULL) {
-            free(map->entries[i]->key);                         // free the key
-            free(map->entries[i]->value);                       // free the value
-            free(map->entries[i]);                              // free the entry
-        }
-    }
-
-    free(map);                                                  // free the map
-}
-
-// function to initialze a hash map for the dictionary words
-HashMap* initializeHashMap(const char *dictPath) {
-    printf("%s", dictPath);
-    int dictFile = open(dictPath, O_RDONLY);            // open the dictiionary in read only mode
-    if(dictFile == -1) {                                // checks if the dictionary file is in the folder
-        perror("Error opening dictionary file");        // prints error if it is not
-        exit(EXIT_FAILURE);                             // exit the program
-    }
-
-    HashMap *map = createHashMap();                                             // establish the hashmap
-
-    char word[MAX_PATH_LENGTH];                                                 // make an array of words
-    ssize_t bytesRead;
-    while((bytesRead = read(dictFile, word, MAX_PATH_LENGTH - 1) > 0)) {        // scan the full text file dictionary
-        word[bytesRead] = '\0';
-        put(map, word, word);                                                   // put every word into the hashmap
-    }
-
-    if(bytesRead == -1) {
-        perror("Error reading dictionary file");
-        exit(EXIT_FAILURE);
-    }
-
-    close(dictFile);                                                           // close the dictionary to keep things clean
-    
-    return map;
-}
-
-// Checking if each word in a given filepath is contained in the dictionary
-void checkFile(const char *dictPath, const char *filePath, HashMap *map) {
-    // open the dictionary file
-    printf("%s", dictPath);
-    int dictFile = open(dictPath, O_RDONLY);            // set a pointer to the dictionary file in read only mode
-    if(dictFile == -1) {                                // check if the dictionary file exists in the project
-        perror("Error opening dictionary file");        // print error if it does not
-        exit(EXIT_FAILURE);                             // exit program
-    }
-
-    // open the text file
-    int textFile = open(filePath, O_RDONLY);            // set a pointer to the provided text file in read only mode
-    if(textFile == -1) {                                // check if the text file exists
-        perror("Error opening text file");              // print error if it does not
-        exit(EXIT_FAILURE);                             // exit program
-    }
-
-    // Read words from the text file and compare with the dictionary
-    // TODO: Implement word comparison
-    char word[MAX_PATH_LENGTH];
-    ssize_t bytesRead;
-    while((bytesRead = read(textFile, word, MAX_PATH_LENGTH - 1)) > 0) {
-        // Compare the given word with the dictionary
-        // Ignore punctuation
-        // Allowed lowercase, Firstcase, ALLCAPS, hypenated-words
-        // Just printing the word right now to show it is functional
-        word[bytesRead] = '\0';
-        printf("%s\n", word);
-    }
-
-    // Close all files
-    close(textFile);
-    close(dictFile);
-}
-
-// Find and Open Files -> Directory Traversal
-// Reading the file and generating a sequence of position-annotated words
-void searchdirectory(const char *dictPath, const char *dirPath, HashMap *map) {
-    printf("%s", dictPath);
-    int dir = open(dirPath, O_RDONLY);                 // set a pointer to the directory path
-    if(dir == -1) {                                     // check if the directory exists
-        perror("Error opening directory");              // print error if it does not
-        exit(EXIT_FAILURE);                             // exit program
-    }
-
-    char buffer[MAX_PATH_LENGTH];
-    ssize_t bytesRead;
-    while((bytesRead = read(dir, buffer, MAX_PATH_LENGTH)) > 0) {
-        for(int i = 0; i < bytesRead; i++) {
-            if(buffer[i] == '\n') {
-                buffer[i] = '\0';
-                checkFile(*dictPath, buffer, map);
+    while((bytesRead = read(dictionary_FD, buffer, BUFFER_SIZE)) > 0) {     // Loop through the file
+        for(int i = 0; i < bytesRead; i++) {    // Loop through the word
+            if(buffer[i] == '\n') {             // End of word, insert to Trie
+                word[wordLength] = '\0';        // Terminate the word
+                if(wordLength > 0) {
+                    insertTrie(root, word);     // Insert complete word to Trie
+                    wordLength = 0;             // Reset word length for next word
+                }
+            }
+            else {
+                word[wordLength++] = buffer[i];     // Append the next character to the word
             }
         }
     }
 
-    if(bytesRead == -1) {
-        perror("Error reading directory");
-        exit(EXIT_FAILURE);
-    }
+    close(dictionary_FD);
 
-    close(dir);
+    return true;
 }
 
-int main(int argc, char *argv[]) {
-    //argv[0]: spchk
-    //argv[1]: dictionary path
-    //argv[2-inf]: files to check
+// Function that checks an individual text file's words against a provided dictionary
+bool checkFile(const char* textPath, dictNode *root) {
+    int text_FD = open(textPath, O_RDONLY);                 // Open the dictionary in read only mode
 
-    HashMap *map = initializeHashMap("words.txt");
-    
-    /*if(argc < 3) {
-        fprintf(stderr, "Usage: %s <directory_path>\n", argv[0]);
-        exit(EXIT_FAILURE);
+    if(text_FD == -1) {                                     // Prints an error if the text file cannot be opened
+        perror("Dictionary could not be opened!\n");
+        return EXIT_FAILURE;
     }
-*/
 
-    //searchdirectory("words.txt", "test.txt", map);
-    //freeHashMap(map);                           // free the hashmap
+    char buffer[BUFFER_SIZE];           // Buffer to reduce sys calls
+    int bytesRead;                      // number of bytes read so far
+    char word[BUFFER_SIZE];             // Buffer to store a single word
+    int wordLength = 0;                 // Length of the word stored
 
-    
-    /*int dictFile = open("words.txt", O_RDONLY);
-    char word[MAX_PATH_LENGTH];                                                 // make an array of words
-    ssize_t bytesRead;
-    while((bytesRead = read(dictFile, word, MAX_PATH_LENGTH - 1) > 0)) {        // scan the full text file dictionary
-        printf("%s\n", word);
-    }*/
-/*
-    return 0;
+    while((bytesRead = read(text_FD, buffer, BUFFER_SIZE)) > 0) {       // Loop through the file
+        for(int i = 0; i < bytesRead; i++) {    // Loop through the word
+            // End of word, insert to Trie
+            if(!(('a' <= buffer[i] && 'z' >= buffer[i]) ||
+                ('A' <= buffer[i] && 'Z' >= buffer[i]))) 
+            {             
+                word[wordLength] = '\0';        // Terminate the word
+                if(wordLength > 0) {
+                    bool wordExists = searchTrie(root, word);       // Search the Trie for the existence of the word
+
+                    if(!wordExists) {                               // If the word does not exist
+                        printf("%s (): %s\n", textPath, word);
+                    }
+
+                    wordLength = 0;                                 // Reset word length for next word
+                }
+            }
+            else {
+                word[wordLength++] = buffer[i];     // Append the next character to the word
+            }
+        }
+    }
+
+    close(text_FD);
+    return true;
 }
-*/
+
+// #endregion
+
+/***************************************************************************************************/
+/********************************THE ABOVE CODE WORKS AS INTENDED***********************************/
+/***************************************************************************************************/
+
+
+
+
+
+void testCases(dictNode *root) {
+    printf("search for Cattle: %d\n", searchTrie(root, "Cattle"));
+    printf("search for Link: %d\n", searchTrie(root, "Link"));
+    printf("search for Apple: %d\n", searchTrie(root, "Apple"));
+    printf("search for apple: %d\n", searchTrie(root, "apple"));
+    printf("search for efpa: %d\n", searchTrie(root, "efpa"));
+}
+
+int main()
+{
+    dictNode *root = NULL;
+
+    fillDictionary(DICTFILE, &root);
+    //printTrie(root);
+    //testCases(root);
+    checkFile(TEXTFILE, root);
+
+    freeTrie(root);
+
+    return EXIT_SUCCESS;
+}
