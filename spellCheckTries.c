@@ -2,12 +2,12 @@
 // TODO:
 // ./spchk ../dict ../testfile
 
-// Read Dictionary File
-// Fill Trie - Based on term "Retrieval"
+// DONE: Read Dictionary File
+// DONE: Fill Trie - Based on term "Retrieval"
 // Locate Directory
 // Read Directory Text Files
 // Remove trailing punctuation
-// Compare word against dictionary words
+// DONE: Compare word against dictionary words
 // Check hypenated words, one on each side
 // Compare with capitalization if it does not match
 // Report errors based on incorrect spelling
@@ -28,6 +28,7 @@
 #define BUFFER_SIZE 1024        // Read buffer to reduce SYS Calls
 
 #define DICTFILE "words.txt"
+#define TEXTFILE "test.txt"
 
 // #region TRIE
 
@@ -202,6 +203,47 @@ bool fillDictionary(const char* dictPath, dictNode **root) {
 /********************************THE ABOVE CODE WORKS AS INTENDED***********************************/
 /***************************************************************************************************/
 
+bool checkFile(const char* textPath, dictNode *root) {
+    int text_FD = open(textPath, O_RDONLY);                 // Open the dictionary in read only mode
+
+    if(text_FD == -1) {                                     // Prints an error if the text file cannot be opened
+        perror("Dictionary could not be opened!\n");
+        return EXIT_FAILURE;
+    }
+
+    char buffer[BUFFER_SIZE];           // Buffer to reduce sys calls
+    int bytesRead;                      // number of bytes read so far
+    char word[BUFFER_SIZE];             // Buffer to store a single word
+    int wordLength = 0;                 // Length of the word stored
+
+    while((bytesRead = read(text_FD, buffer, BUFFER_SIZE)) > 0) {       // Loop through the file
+        for(int i = 0; i < bytesRead; i++) {    // Loop through the word
+            // End of word, insert to Trie
+            if(!(('a' <= buffer[i] && 'z' >= buffer[i]) ||
+                ('A' <= buffer[i] && 'Z' >= buffer[i]))) 
+            {             
+                word[wordLength] = '\0';        // Terminate the word
+                if(wordLength > 0) {
+                    bool wordExists = searchTrie(root, word);       // Search the Trie for the existence of the word
+
+                    if(!wordExists) {                               // If the word does not exist
+                        printf("%s (): %s\n", textPath, word);
+                    }
+
+                    wordLength = 0;                                 // Reset word length for next word
+                }
+            }
+            else {
+                word[wordLength++] = buffer[i];     // Append the next character to the word
+            }
+        }
+    }
+
+    close(text_FD);
+    return true;
+}
+
+
 
 void testCases(dictNode *root) {
     printf("search for Cattle: %d\n", searchTrie(root, "Cattle"));
@@ -216,9 +258,9 @@ int main()
     dictNode *root = NULL;
 
     fillDictionary(DICTFILE, &root);
-    printTrie(root);
+    //printTrie(root);
     //testCases(root);
-
+    checkFile(TEXTFILE, root);
 
     freeTrie(root);
 
