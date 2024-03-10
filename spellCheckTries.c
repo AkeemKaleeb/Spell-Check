@@ -22,7 +22,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define NUM_CHAR 265        // Capital, Lowercase, space, new line
+#define NUM_CHAR 256        // Capital, Lowercase, space, new line
 
 typedef struct trienode {
     struct trienode *children[NUM_CHAR];
@@ -88,7 +88,7 @@ void printTrie_Recursive(trieNode *node, unsigned char *prefix, int length) {
     }
 }
 
-// Function to print out the trie
+// Function to print out the trie in ASCII-betical order
 void printTrie(trieNode *root) {
     if(root == NULL) {                  // Special case for when the TRIE is empty
         printf("TRIE EMPTY\n");
@@ -96,6 +96,24 @@ void printTrie(trieNode *root) {
     }
 
     printTrie_Recursive(root, NULL, 0); // Call to recursive print function
+}
+
+// Function to search if the word exists within the trie
+// True implies the word exists
+// False implies the word does not exist
+bool searchTrie(trieNode *root, char *signedText) {
+    unsigned char *text = (unsigned char*)signedText;       // Prevents negative indexes in the table
+    int length = strlen(signedText);                        // How long is the word we are searching for
+    trieNode *tmp = root;                                   // Temporary node, initialized to the root
+
+    for(int i = 0; i < length; i++) {                       // Search trie character by character
+        if(tmp->children[text[i]] == NULL) {                // Check if the ith character in the word exists
+            return false;                                   // Return false if the word does not exist
+        }
+        tmp = tmp->children[text[i]];                       // Search the next node based on the next character
+    }
+
+    return tmp->terminal;                                   // Returns true only if the final node is terminal: the word exists and is not a substring of another word
 }
 
 /***************************************************************************************************/
@@ -113,6 +131,12 @@ int main() {
     insertTrie(&root, "HAPPY");
 
     printTrie(root);
+
+    printf("search for CATTLE: %d\n", searchTrie(root, "CATTLE"));
+    printf("search for LINK: %d\n", searchTrie(root, "LINK"));
+    printf("search for HAPPY: %d\n", searchTrie(root, "HAPPY"));
+    printf("search for CAT: %d\n", searchTrie(root, "CAT"));
+    printf("search for KITTEN: %d\n", searchTrie(root, "KITTEN"));
     
     return EXIT_SUCCESS;
 }
