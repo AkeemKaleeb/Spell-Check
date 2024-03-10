@@ -11,3 +11,5 @@ Hyphenated-words should be allowed.
 wRoNg sPeLlInG cAsEs sHoUlD nOt bE aLlOWeD.
 
 Punctuation()[]{} should, be? ignored!
+
+Apple-apple
