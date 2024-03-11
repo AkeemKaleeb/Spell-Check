@@ -4,47 +4,82 @@
 #include <fcntl.h>
 #include <string.h>
 #include <dirent.h>
+#include <ctype.h>
 
-#define MAX_PATH_LENGTH 1000
-#define HASH_MAP_SIZE 1000
-#define DICTFILE "words.txt"
+#define NUM_NODES 26
+//trie data structure
+/************************************************************************************************************/
+struct TrieNode {
+    //each node has 26 children, corresponding to each letter of the alphabet
+    children[NUM_NODES];
+    int isLeafNode = 0; //0 means FALSE and 1 means TRUE   //if isLeafNode? is true, that means this node represents the end of a word.
+    char value; //stores the actual node/character value
+} typedef node;
 
-
-typedef struct hashMapEntry {
-    char *key;      //the key used to identify the entry
-    char *value;    //the value of the entry
-}Entry;
-
-//an array of key-value pairs
-typedef struct HashMap {
-    Entry* entries[HASH_MAP_SIZE];
-}HashMap;
-
-// hash function
-unsigned int hash(const char *key) {
-    unsigned int hash = 0;                          // sets up return hash value
-    for(int i = 0; key[i] != '\0'; i++) {           // works through the keys until null character
-        hash = 31 * hash + key[i];                  // assigns a hash value
+//creates a new node
+node* makeNode (char c){
+    node* newNode = (node*) malloc (sizeof(node)); //what's the difference between using malloc and calloc over here?
+                                                    //the latter fills the allocated memory wih 0s
+    for (int i = 0; i < NUM_NODES; i++){
+        newNode->children[i] = NULL;
     }
-    return hash % HASH_MAP_SIZE;                    // returns the hash value based on the array size
+    newNode->isLeafNode = 0;
+    newNode->value = c;
+    return newNode;
+}
+//frees a single node
+void freeNode (node * targetNode){
+    for (int i = 0; i < NUM_NODES; i++){
+        if (targetNode->children[i] != NULL){
+            free (targetNode->children[i]);
+        }
+    }
+    free(targetNode);
 }
 
-//create a new HashMap
-void createHashMap (){
-    HashMap* map = (HashMap*) malloc (sizeof(HashMap));
-    memset (map -> entries, 0, sizeof(Entry));  //initialize map with 000s
-    return map;
-}
-/*
-void put (HashMap * map, char * key, char * value){
-    int index = hash (key);
-    map->entries[index]->key = strcpy(key);
-    map->entries[index]->key = strcpy (value); 
-}
-*/
-//I'm not sure we want to use a HashMap here since it doesn't make logical sense
-//some of the data structures to consider would be here: https://stackoverflow.com/questions/10017808/best-data-structure-for-implementing-a-dictionary
+//function to insert an entire word into the tree
+void insertTree (node * root, char * word){
+    node* current = root;
+    int size = sizeof(word) - 1; //since the word also contains '\0'
 
+    for (int i = 0; i < size; i++){
+        int index = tolower(word[i]) - 'a'; //this should return the position of the letter in the children array
+        if (current->children[index] == NULL){
+            //create node
+            current->children[index] = makeNode (word[i]);
+        }
+        if (i == size - 1){
+            current->isLeafNode = 1;   //set the boolean equal to true if this is the last letter/node
+        }
+        current = current->children[index];
+    }
+    return root;
+}
+void searchTree (node *root, char * word){
+    node* current = root;
+    int size = sizeof(word) - 1; //since the word also contains '\0'
+
+    for (int i = 0; i < size; i++){
+        int index = tolower(word[i]) - 'a'; //this should return the position of the letter in the children array
+        if (current->children[index] == NULL){
+            return EXIT_FAILURE;    //the node does not exist //this is not a word
+        }
+        current = current->children[index];
+    }
+    return EXIT_SUCCESS;
+}
+//function to print all the words in a tree
+void printTree(node * root){
+    if (root == NULL){
+        return;
+    }
+    node* current = root;
+    printf ("%c -> ", current>data);
+    for (int i = 0; i < NUM_NODES; i++){
+        printTree(current->children[i]);
+    }
+}
+/************************************************************************************************************/
 //When spchk is given a directory name as an argument, it will perform a recursive directory traversal
 //and check spelling in all files whose names end with “.txt”, but ignoring any files or directories whose
 //names begin with “.”
@@ -68,7 +103,6 @@ int filesInDir(char* path){
     closedir(dir);
     return EXIT_SUCCESS;
 }
-
 
 
 int main(int argc, char *argv[]) {
