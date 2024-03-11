@@ -11,8 +11,8 @@
 /************************************************************************************************************/
 struct TrieNode {
     //each node has 26 children, corresponding to each letter of the alphabet
-    children[NUM_NODES];
-    int isLeafNode = 0; //0 means FALSE and 1 means TRUE   //if isLeafNode? is true, that means this node represents the end of a word.
+    struct TrieNode * children[NUM_NODES];
+    int isLeafNode; //0 means FALSE and 1 means TRUE - if isLeafNode is true, that means this node represents the end of a word
     char value; //stores the actual node/character value
 } typedef node;
 
@@ -38,7 +38,7 @@ void freeNode (node * targetNode){
 }
 
 //function to insert an entire word into the tree
-void insertTree (node * root, char * word){
+node * insertTree (node * root, char * word){
     node* current = root;
     int size = sizeof(word) - 1; //since the word also contains '\0'
 
@@ -55,7 +55,7 @@ void insertTree (node * root, char * word){
     }
     return root;
 }
-void searchTree (node *root, char * word){
+int searchTree (node *root, char * word){
     node* current = root;
     int size = sizeof(word) - 1; //since the word also contains '\0'
 
@@ -74,7 +74,7 @@ void printTree(node * root){
         return;
     }
     node* current = root;
-    printf ("%c -> ", current>data);
+    printf ("%c -> ", current->value);
     for (int i = 0; i < NUM_NODES; i++){
         printTree(current->children[i]);
     }
@@ -106,14 +106,21 @@ int filesInDir(char* path){
 
 
 int main(int argc, char *argv[]) {
+    node* root = makeNode('\0');
+    root = insertTree(root, "hello");
+    root = insertTree(root, "hi");
+    root = insertTree(root, "teabag");
+    root = insertTree(root, "teacan");
+    printTree(root);
     //argv[0]: spchk
     //argv[1]: dictionary path
     //argv[2-inf]: directory path
-    
+    /*
     if(argc < 3) {
         fprintf(stderr, "Usage: %s <directory_path>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
     filesInDir(argv[2]);
+    */
     return 0;
 }
