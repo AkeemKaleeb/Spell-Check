@@ -89,23 +89,29 @@ int filesInDir(char* path){
     DIR *dir;//creates an object of struct DIR
     struct dirent * entry; //stores all the directory entries (ie, the files and subfolders in the directory)
 
-
+    //checks if we're able to open the directory
     if ((dir = opendir (path)) == NULL){
         perror ("There was a problem opening the directory!\n");
         return EXIT_FAILURE;
     }
 
     while ((entry = readdir(dir)) != NULL){ //while the entry we are reading from the directory is not null
-        struct stat statBuff;
-        char entryPath[1024];
-        snprintf(entryPath, sizeof(entryPath), "%s%s", path, entry->d_name);
-        if (stat(entryPath, &statBuff == -1)){
-            perror("Issue with getting file stats.");
+        //skip "." and ".." dirent entries
+        if (strcmp(entry, ".") == 0 || strcmp(entry, "..") == 0){
+            continue;   //skip the loop
         }
-
-        if (S_ISDIR(entry) == TRUE){
-            filesInDir(entry.d_name);
+        //check if the entry is a sub-directory //recursive case
+        if ((entry->d_type == DT_DIR)){
+            //recursive case to print all the directory entries in the sub-directory
+            char* subpath; //we need to construct the directory path
+            subpath = malloc( strlen(path) + strlen(entry) + 2); //length of the current path, directory name, plus 2 for '/' and '\0'
+            strcat(subpath, path);
+            strcat(subpath, "/");
+            strcat(subpath, entry->d_name);
+            filesInDir(subpath);    //recursive function call
+            free(subpath);          //free the subpath
         }
+        //this is the base case
         else if ((strstr(entry->d_name, ".txt")!= NULL) && entry->d_name[0] != '.'){
             printf ("\n%s\n", entry->d_name);
         }
