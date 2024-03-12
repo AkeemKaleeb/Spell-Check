@@ -97,22 +97,25 @@ int filesInDir(char* path){
 
     while ((entry = readdir(dir)) != NULL){ //while the entry we are reading from the directory is not null
         //skip "." and ".." dirent entries
-        if (strcmp(entry, ".") == 0 || strcmp(entry, "..") == 0){
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){
             continue;   //skip the loop
         }
         //check if the entry is a sub-directory //recursive case
-        if ((entry->d_type == DT_DIR)){
+        if (entry->d_type == DT_DIR){
             //recursive case to print all the directory entries in the sub-directory
             char* subpath; //we need to construct the directory path
-            subpath = malloc( strlen(path) + strlen(entry) + 2); //length of the current path, directory name, plus 2 for '/' and '\0'
+            subpath = malloc( strlen(path) + strlen(entry->d_name) + 2); //length of the current path, directory name, plus 2 for '/' and '\0'
             strcat(subpath, path);
             strcat(subpath, "/");
-            strcat(subpath, entry->d_name);
+            strcat(subpath, entry->d_name); //we don't need to append '\0' because strcat appends it automatically
+
+            printf("%s", subpath);
+
             filesInDir(subpath);    //recursive function call
             free(subpath);          //free the subpath
         }
         //this is the base case
-        else if ((strstr(entry->d_name, ".txt")!= NULL) && entry->d_name[0] != '.'){
+        if ((strstr(entry->d_name, ".txt")!= NULL) && entry->d_name[0] != '.'){
             printf ("\n%s\n", entry->d_name);
         }
     }
