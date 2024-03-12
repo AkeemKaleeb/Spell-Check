@@ -92,6 +92,7 @@ int filesInDir(char* path){
     //checks if we're able to open the directory
     if ((dir = opendir (path)) == NULL){
         perror ("There was a problem opening the directory!\n");
+        closedir(dir);
         return EXIT_FAILURE;
     }
 
@@ -100,29 +101,29 @@ int filesInDir(char* path){
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){
             continue;   //skip the loop
         }
+        //this is the base case
+        else if ((strstr(entry->d_name, ".txt")!= NULL) && entry->d_name[0] != '.'){
+            printf ("\n%s\n", entry->d_name);
+        }
         //check if the entry is a sub-directory //recursive case
-        if (entry->d_type == DT_DIR){
+        else if (entry->d_type == DT_DIR){
             //recursive case to print all the directory entries in the sub-directory
             char* subpath; //we need to construct the directory path
             subpath = malloc( strlen(path) + strlen(entry->d_name) + 2); //length of the current path, directory name, plus 2 for '/' and '\0'
+            
             strcat(subpath, path);
             strcat(subpath, "/");
             strcat(subpath, entry->d_name); //we don't need to append '\0' because strcat appends it automatically
 
-            printf("%s", subpath);
+            printf("DIRECTORY PATH: %s", subpath);
 
             filesInDir(subpath);    //recursive function call
             free(subpath);          //free the subpath
-        }
-        //this is the base case
-        if ((strstr(entry->d_name, ".txt")!= NULL) && entry->d_name[0] != '.'){
-            printf ("\n%s\n", entry->d_name);
         }
     }
     closedir(dir);
     return EXIT_SUCCESS;
 }
-
 
 
 int main(int argc, char *argv[]) {
