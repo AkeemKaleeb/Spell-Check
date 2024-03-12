@@ -97,16 +97,17 @@ int filesInDir(char* path){
     }
 
     while ((entry = readdir(dir)) != NULL){ //while the entry we are reading from the directory is not null
+        printf("ENTRY NAME: %s\n", entry ->d_name);
         //skip "." and ".." dirent entries
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){
             continue;   //skip the loop
         }
         //this is the base case
         else if ((strstr(entry->d_name, ".txt")!= NULL) && entry->d_name[0] != '.'){
-            printf ("\n%s\n", entry->d_name);
+            printf ("%s\n", entry->d_name);
         }
         //check if the entry is a sub-directory //recursive case
-        else if (entry->d_type == DT_DIR){
+        else if (entry->d_type == DT_DIR && entry->d_name[0] != '.'){
             //recursive case to print all the directory entries in the sub-directory
             char* subpath; //we need to construct the directory path
             subpath = malloc( strlen(path) + strlen(entry->d_name) + 2); //length of the current path, directory name, plus 2 for '/' and '\0'
@@ -115,7 +116,7 @@ int filesInDir(char* path){
             strcat(subpath, "/");
             strcat(subpath, entry->d_name); //we don't need to append '\0' because strcat appends it automatically
 
-            printf("DIRECTORY PATH: %s", subpath);
+            printf("DIRECTORY PATH: %s\n", subpath);
 
             filesInDir(subpath);    //recursive function call
             free(subpath);          //free the subpath
@@ -124,7 +125,6 @@ int filesInDir(char* path){
     closedir(dir);
     return EXIT_SUCCESS;
 }
-
 
 int main(int argc, char *argv[]) {
     node* root = makeNode('\0');
