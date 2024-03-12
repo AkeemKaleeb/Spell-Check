@@ -96,13 +96,24 @@ int filesInDir(char* path){
     }
 
     while ((entry = readdir(dir)) != NULL){ //while the entry we are reading from the directory is not null
-        if ((strstr(entry->d_name, ".txt")!= NULL) && entry->d_name[0] != '.'){
+        struct stat statBuff;
+        char entryPath[1024];
+        snprintf(entryPath, sizeof(entryPath), "%s%s", path, entry->d_name);
+        if (stat(entryPath, &statBuff == -1)){
+            perror("Issue with getting file stats.");
+        }
+
+        if (S_ISDIR(entry) == TRUE){
+            filesInDir(entry.d_name);
+        }
+        else if ((strstr(entry->d_name, ".txt")!= NULL) && entry->d_name[0] != '.'){
             printf ("\n%s\n", entry->d_name);
         }
     }
     closedir(dir);
     return EXIT_SUCCESS;
 }
+
 
 
 int main(int argc, char *argv[]) {
