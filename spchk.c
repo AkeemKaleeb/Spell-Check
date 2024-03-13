@@ -23,8 +23,8 @@ node* makeNode (char c){
     for (int i = 0; i < NUM_NODES; i++){
         newNode->children[i] = NULL;
     }
-    newNode->isLeafNode = 0;
-    newNode->value = c;
+    newNode->isLeafNode = 0;    //not a leaf node
+    newNode->value = c;         //stores the letter
     return newNode;
 }
 //frees a single node
@@ -36,23 +36,29 @@ void freeNode (node * targetNode){
     }
     free(targetNode);
 }
-
+//function to print all the words in a tree
+void printTree(node * root){
+    if (root == NULL){
+        return;
+    }
+    node* current = root;
+    printf ("%c -> ", current->value);
+    for (int i = 0; i < NUM_NODES; i++){
+        printTree(current->children[i]);
+    }
+}
 //function to insert an entire word into the tree
 node * insertTree (node * root, char * word){
     node* current = root;
-    int size = sizeof(word) - 1; //since the word also contains '\0'
-
-    for (int i = 0; i < size; i++){
-        int index = tolower(word[i]) - 'a'; //this should return the position of the letter in the children array
+    for (int i = 0; word[i] != '\0'; i++){
+        int index = (int) tolower(word[i]) - 'a'; //this should return the position of the letter in the children array
         if (current->children[index] == NULL){
             //create node
             current->children[index] = makeNode (word[i]);
         }
-        if (i == size - 1){
-            current->isLeafNode = 1;   //set the boolean equal to true if this is the last letter/node
-        }
         current = current->children[index];
     }
+    current->isLeafNode = 1;   //set the boolean equal to true if this is the last letter/node
     return root;
 }
 int searchTree (node *root, char * word){
@@ -67,17 +73,6 @@ int searchTree (node *root, char * word){
         current = current->children[index];
     }
     return EXIT_SUCCESS;
-}
-//function to print all the words in a tree
-void printTree(node * root){
-    if (root == NULL){
-        return;
-    }
-    node* current = root;
-    printf ("%c -> ", current->value);
-    for (int i = 0; i < NUM_NODES; i++){
-        printTree(current->children[i]);
-    }
 }
 /************************************************************************************************************/
 //When spchk is given a directory name as an argument, it will perform a recursive directory traversal
@@ -126,22 +121,16 @@ int filesInDir(char* path){
     return EXIT_SUCCESS;
 }
 
-int main(int argc, char *argv[]) {
-    node* root = makeNode('\0');
-    root = insertTree(root, "hello");
-    root = insertTree(root, "hi");
-    root = insertTree(root, "teabag");
-    root = insertTree(root, "teacan");
-    printTree(root);
+
+int main(int argc, char *argv[]) {    
+    //filesInDir(argv[2]);
     //argv[0]: spchk
     //argv[1]: dictionary path
     //argv[2-inf]: directory path
-    /*
     if(argc < 3) {
         fprintf(stderr, "Usage: %s <directory_path>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
     filesInDir(argv[2]);
-    */
     return 0;
 }
