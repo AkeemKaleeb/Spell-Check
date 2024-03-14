@@ -4,7 +4,7 @@
 
 // DONE: Read Dictionary File
 // DONE: Fill Trie - Based on term "Retrieval"
-// Locate Directory
+// DONE: Locate Directory
 // DONE: Read Directory Text Files
 // DONE: Remove trailing punctuation
 // DONE: Compare word against dictionary words
@@ -249,6 +249,16 @@ bool checkFile(const char* textPath, dictNode *root) {
         }
     }
 
+    // Check the last word in the file
+    if (wordLength > 0) {
+        word[wordLength] = '\0';                    // Terminate the last word
+        bool wordExists = searchTrie(root, word);   // Search the Trie for the last word
+
+        if (!wordExists) {                          // If the last word does not exist
+            printf("%s (%d, %d): %s\n", textPath, row, col - wordLength, word);
+        }
+    }
+
     close(text_FD);
     return true;
 }
@@ -261,7 +271,7 @@ bool checkFile(const char* textPath, dictNode *root) {
 
 
 //a function to return all the files in a specified directory whose names end with ".txt", but don't begin with "."
-int filesInDir(char* path){
+int filesInDir(char* path, dictNode *root){
     DIR *dir;
     struct dirent *entry;
     struct stat statbuf;
@@ -272,12 +282,13 @@ int filesInDir(char* path){
     }
 
     while ((entry = readdir(dir)) != NULL){
+        // Skip "." and ".." directories
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){
             continue;
         }
 
-        char fullpath[200];
-        snprintf(fullpath, 256, "%s/%s", path, entry->d_name);
+        char fullpath[BUFFER_SIZE];
+        snprintf(fullpath, BUFFER_SIZE, "%s/%s", path, entry->d_name);
 
         if (stat(fullpath, &statbuf) == -1){
             perror("Error in stat");
@@ -285,10 +296,11 @@ int filesInDir(char* path){
         }
 
         if (S_ISDIR(statbuf.st_mode)){
-            printf("DIRECTORY PATH: %s\n", fullpath);
-            filesInDir(fullpath);
+            //printf("DIRECTORY PATH: %s\n", fullpath);
+            filesInDir(fullpath, root);
         } else if (S_ISREG(statbuf.st_mode)){
-            printf("Regular file: %s\n", fullpath);
+            //printf("Regular file: %s\n", fullpath);
+            checkFile(fullpath, root);
         }
     }
 
@@ -306,16 +318,17 @@ void testCases(dictNode *root) {
 
 int main()
 {
-    //dictNode *root = NULL;
+    dictNode *root = NULL;
 
-    //fillDictionary(DICTFILE, &root);
+    fillDictionary(DICTFILE, &root);
     //printTrie(root);
     //testCases(root);
     //checkFile(TEXTFILE, root);
 
-    //freeTrie(root);
+    filesInDir("./DirTest", root);
+    //checkFile("./DirTest/DirTest2/test5.txt", root);
 
-    filesInDir("./DirTest");
+    freeTrie(root);
 
     return EXIT_SUCCESS;
 }
