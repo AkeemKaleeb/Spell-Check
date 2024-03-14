@@ -276,6 +276,15 @@ int filesInDir(char* path, dictNode *root){
     struct dirent *entry;
     struct stat statbuf;
 
+    if (stat(path, &statbuf) == -1){
+        perror("Error in stat");
+        return EXIT_FAILURE;
+    }
+    if (S_ISREG(statbuf.st_mode)){
+        checkFile(path, root);
+        return EXIT_SUCCESS;
+    }
+
     if ((dir = opendir(path)) == NULL){
         perror("There was a problem opening the directory!\n");
         return EXIT_FAILURE;
@@ -316,19 +325,26 @@ void testCases(dictNode *root) {
     printf("search for efpa: %d\n", searchTrie(root, "efpa"));
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    dictNode *root = NULL;
+    // ./spchk ../dict ../testfile
+    // argv[0] argv[1] argv[2 -> inf]
 
-    fillDictionary(DICTFILE, &root);
-    //printTrie(root);
-    //testCases(root);
-    //checkFile(TEXTFILE, root);
+    if(argc < 2) {
+        perror("Error Usage: ./spchk ../dict ../testfiles");
+        exit(EXIT_FAILURE);
+    }
 
-    filesInDir("./DirTest", root);
-    //checkFile("./DirTest/DirTest2/test5.txt", root);
+    char* dictPath = argv[1];
 
-    freeTrie(root);
+    dictNode *root = NULL;                  // Instantiate Dictionary
+    fillDictionary(dictPath, &root);        // Fill Dictionary
 
-    return EXIT_SUCCESS;
+    for(int i = 2; i < argc; i++) {
+        filesInDir((char*)argv[i], root);   // Check all subdirectories and text files for spelling errors
+    }
+    
+    freeTrie(root);                         // Free the dictionary
+
+    return EXIT_SUCCESS;                    // Exit the program
 }
