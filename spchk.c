@@ -24,6 +24,9 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <ctype.h>
 
 #define NUM_CHAR 256            // Capital, Lowercase, space, new line
 #define BUFFER_SIZE 1024        // Read buffer to reduce SYS Calls
@@ -257,8 +260,41 @@ bool checkFile(const char* textPath, dictNode *root) {
 /***************************************************************************************************/
 
 
+//a function to return all the files in a specified directory whose names end with ".txt", but don't begin with "."
+int filesInDir(char* path){
+    DIR *dir;
+    struct dirent *entry;
+    struct stat statbuf;
 
+    if ((dir = opendir(path)) == NULL){
+        perror("There was a problem opening the directory!\n");
+        return EXIT_FAILURE;
+    }
 
+    while ((entry = readdir(dir)) != NULL){
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){
+            continue;
+        }
+
+        char fullpath[200];
+        snprintf(fullpath, 256, "%s/%s", path, entry->d_name);
+
+        if (stat(fullpath, &statbuf) == -1){
+            perror("Error in stat");
+            continue;
+        }
+
+        if (S_ISDIR(statbuf.st_mode)){
+            printf("DIRECTORY PATH: %s\n", fullpath);
+            filesInDir(fullpath);
+        } else if (S_ISREG(statbuf.st_mode)){
+            printf("Regular file: %s\n", fullpath);
+        }
+    }
+
+    closedir(dir);
+    return EXIT_SUCCESS;
+}
 
 void testCases(dictNode *root) {
     printf("search for Cattle: %d\n", searchTrie(root, "Cattle"));
@@ -270,14 +306,16 @@ void testCases(dictNode *root) {
 
 int main()
 {
-    dictNode *root = NULL;
+    //dictNode *root = NULL;
 
-    fillDictionary(DICTFILE, &root);
+    //fillDictionary(DICTFILE, &root);
     //printTrie(root);
     //testCases(root);
-    checkFile(TEXTFILE, root);
+    //checkFile(TEXTFILE, root);
 
-    freeTrie(root);
+    //freeTrie(root);
+
+    filesInDir("./DirTest");
 
     return EXIT_SUCCESS;
 }
