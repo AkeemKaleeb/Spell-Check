@@ -26,7 +26,6 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
-#include <ctype.h>
 
 #define NUM_CHAR 256            // Capital, Lowercase, space, new line
 #define BUFFER_SIZE 1024        // Read buffer to reduce SYS Calls
@@ -263,13 +262,6 @@ bool checkFile(const char* textPath, dictNode *root) {
     return true;
 }
 
-// #endregion
-
-/***************************************************************************************************/
-/********************************THE ABOVE CODE WORKS AS INTENDED***********************************/
-/***************************************************************************************************/
-
-
 //a function to return all the files in a specified directory whose names end with ".txt", but don't begin with "."
 int filesInDir(char* path, dictNode *root){
     DIR *dir;
@@ -317,13 +309,14 @@ int filesInDir(char* path, dictNode *root){
     return EXIT_SUCCESS;
 }
 
-void testCases(dictNode *root) {
-    printf("search for Cattle: %d\n", searchTrie(root, "Cattle"));
-    printf("search for Link: %d\n", searchTrie(root, "Link"));
-    printf("search for Apple: %d\n", searchTrie(root, "Apple"));
-    printf("search for apple: %d\n", searchTrie(root, "apple"));
-    printf("search for efpa: %d\n", searchTrie(root, "efpa"));
-}
+// #endregion
+
+/***************************************************************************************************/
+/********************************THE ABOVE CODE WORKS AS INTENDED***********************************/
+/***************************************************************************************************/
+
+
+
 
 int main(int argc, char *argv[])
 {
