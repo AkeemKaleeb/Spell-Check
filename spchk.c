@@ -7,6 +7,7 @@
 #include <ctype.h>
 
 #define NUM_NODES 26
+#define BUFFER_SIZE 1024    //limit the number of system calls
 //trie data structure
 /************************************************************************************************************/
 struct TrieNode {
@@ -79,7 +80,7 @@ int searchTree (node *root, char * word){
 //and check spelling in all files whose names end with “.txt”, but ignoring any files or directories whose
 //names begin with “.”
 
-//a function to return all the files in a specified directory whose names end with ".txt", but don't begin with "."
+//a function to return all the files in a specified directory whose names end with ".txt"
 int filesInDir(char* path){
     DIR *dir;//creates an object of struct DIR
     struct dirent * entry; //stores all the directory entries (ie, the files and subfolders in the directory)
@@ -92,26 +93,24 @@ int filesInDir(char* path){
     }
 
     while ((entry = readdir(dir)) != NULL){ //while the entry we are reading from the directory is not null
-        printf("ENTRY NAME: %s\n", entry ->d_name);
-        //skip "." and ".." dirent entries
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){
+        //skip any directory entries that begin with '.', including the links to self (".") and parent ("..")
+        if (entry->d_name[0] =='.'){
             continue;   //skip the loop
         }
         //this is the base case
-        else if ((strstr(entry->d_name, ".txt")!= NULL) && entry->d_name[0] != '.'){
-            printf ("%s\n", entry->d_name);
+        else if (entry->d_type == DT_REG && (strstr(entry->d_name, ".txt")!= NULL)){
+            printf ("Added to Queue: %s!\n", entry->d_name);
         }
         //check if the entry is a sub-directory //recursive case
-        else if (entry->d_type == DT_DIR && entry->d_name[0] != '.'){
+        else if (entry->d_type == DT_DIR){
             //recursive case to print all the directory entries in the sub-directory
             char* subpath; //we need to construct the directory path
-            subpath = malloc( strlen(path) + strlen(entry->d_name) + 2); //length of the current path, directory name, plus 2 for '/' and '\0'
+            subpath = malloc(strlen(path) + strlen(entry->d_name) + 2); //length of the current path, directory name, plus 2 for '/' and '\0'
             
+            //construct the subpath
             strcat(subpath, path);
             strcat(subpath, "/");
             strcat(subpath, entry->d_name); //we don't need to append '\0' because strcat appends it automatically
-
-            printf("DIRECTORY PATH: %s\n", subpath);
 
             filesInDir(subpath);    //recursive function call
             free(subpath);          //free the subpath
