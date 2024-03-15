@@ -6,13 +6,14 @@
 #include <dirent.h>
 #include <ctype.h>
 
-#define NUM_NODES 26
+#define NUM_NODES 128        //assume all characters are in ASCI 128
 #define BUFFER_SIZE 1024    //limit the number of system calls
-//trie data structure
+#define PATH_MAX 4096       //max number of characters in a path name
+//tree data structure
 /************************************************************************************************************/
-struct TrieNode {
+struct TreeNode {
     //each node has 26 children, corresponding to each letter of the alphabet
-    struct TrieNode * children[NUM_NODES];
+    struct TreeNode * children[NUM_NODES];
     int isLeafNode; //0 means FALSE and 1 means TRUE - if isLeafNode is true, that means this node represents the end of a word
     char value; //stores the actual node/character value
 } typedef node;
@@ -52,7 +53,7 @@ void printTree(node * root){
 node * insertTree (node * root, char * word){
     node* current = root;
     for (int i = 0; word[i] != '\0'; i++){
-        int index = (int) tolower(word[i]) - 'a'; //this should return the position of the letter in the children array
+        int index = (int) word[i] - '0'; //this should return the position of the letter in the children array
         if (current->children[index] == NULL){
             //create node
             current->children[index] = makeNode (word[i]);
@@ -67,7 +68,7 @@ int searchTree (node *root, char * word){
     int size = sizeof(word) - 1; //since the word also contains '\0'
 
     for (int i = 0; i < size; i++){
-        int index = tolower(word[i]) - 'a'; //this should return the position of the letter in the children array
+        int index = tolower(word[i]) - '0'; //this should return the position of the letter in the children array
         if (current->children[index] == NULL){
             return EXIT_FAILURE;    //the node does not exist //this is not a word
         }
@@ -76,6 +77,7 @@ int searchTree (node *root, char * word){
     return EXIT_SUCCESS;
 }
 /************************************************************************************************************/
+
 //When spchk is given a directory name as an argument, it will perform a recursive directory traversal
 //and check spelling in all files whose names end with “.txt”, but ignoring any files or directories whose
 //names begin with “.”
@@ -84,6 +86,8 @@ int searchTree (node *root, char * word){
 int filesInDir(char* path){
     DIR *dir;//creates an object of struct DIR
     struct dirent * entry; //stores all the directory entries (ie, the files and subfolders in the directory)
+    //printf("Callling function filesInDir!\n");
+    //printf("Path: %s\n", path);
 
     //checks if we're able to open the directory
     if ((dir = opendir (path)) == NULL){
@@ -94,13 +98,24 @@ int filesInDir(char* path){
 
     while ((entry = readdir(dir)) != NULL){ //while the entry we are reading from the directory is not null
         //skip any directory entries that begin with '.', including the links to self (".") and parent ("..")
-        if (entry->d_name[0] =='.'){
-            continue;   //skip the loop
-        }
-        //this is the base case
-        else if (entry->d_type == DT_REG && (strstr(entry->d_name, ".txt")!= NULL)){
-            printf ("Added to Queue: %s!\n", entry->d_name);
-        }
+        if (entry->d_name[0] !='.'){
+            //this is the base case
+            if (entry->d_type == DT_REG && (strstr(entry->d_name, ".txt")!= NULL)){
+            printf ("%s!\n", entry->d_name);
+            }
+            //check if the entry is a sub-directory //recursive case
+            else if (entry->d_type == DT_DIR){
+                //recursive case to print all the directory entries in the sub-directory
+                char subpath[PATH_MAX];
+                snprintf(subpath, sizeof(subpath), "%s/%s", path, entry->d_name);
+                filesInDir(subpath);
+            }
+         }
+    }
+    closedir(dir);
+    return EXIT_SUCCESS;
+}
+/* for some reason, this did not work in my filesInDir function
         //check if the entry is a sub-directory //recursive case
         else if (entry->d_type == DT_DIR){
             //recursive case to print all the directory entries in the sub-directory
@@ -115,9 +130,37 @@ int filesInDir(char* path){
             filesInDir(subpath);    //recursive function call
             free(subpath);          //free the subpath
         }
+*/
+
+void * fillDictionary(char* dictFile){
+    int fd = open(dictFile, O_RDONLY); //file descriptor 
+
+    if (fd == -1){
+        perror ("Could not open dictionary file!\n");
+        return NULL;
     }
-    closedir(dir);
-    return EXIT_SUCCESS;
+    
+    char buffer [BUFFER_SIZE]; //assuming the length of the words will not exceed 1024 characters (the longest english word is only 45 chars)
+    ssize_t bytesRead;
+    char word [BUFFER_SIZE];
+    int pos = 0;
+    
+    while ((bytesRead = read (fd, buffer, BUFFER_SIZE - 1)) > 0){  //read returns 0 when there is an error in reading bytes from the open files
+        buffer[BUFFER_SIZE - 1] = '\0';
+        for (int i = 0; i < bytesRead; i++){
+            if (buffer[i] == '\n'){
+                word[i] = '\0';
+                printf("%s\n", word);
+                pos = 0;
+            }
+            else {
+                word[pos] = buffer[i];
+                pos++;
+            }
+        }
+    }
+    close(fd);
+    return NULL;
 }
 
 
@@ -130,6 +173,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Usage: %s <directory_path>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-    filesInDir(argv[2]);
+    //filesInDir(argv[2]);
+    fillDictionary("./words.txt");
     return 0;
 }
