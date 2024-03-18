@@ -63,6 +63,7 @@ node * insertTree (node * root, char * word){
     current->isLeafNode = 1;   //set the boolean equal to true if this is the last letter/node
     return root;
 }
+//searches the dictionary for a single word
 int searchTree (node *root, char * word){
     node* current = root;
     int size = sizeof(word) - 1; //since the word also contains '\0'
@@ -70,11 +71,21 @@ int searchTree (node *root, char * word){
     for (int i = 0; i < size; i++){
         int index = tolower(word[i]) - '0'; //this should return the position of the letter in the children array
         if (current->children[index] == NULL){
-            return EXIT_FAILURE;    //the node does not exist //this is not a word
+            return EXIT_FAILURE;    //the node does not exist //this is not a word  //returns 1
         }
         current = current->children[index];
     }
-    return EXIT_SUCCESS;
+    return EXIT_SUCCESS;    //which is 0
+}
+//we need to free the entire Tree Data Structure
+void freeTree (node * root){
+    if (root == NULL){
+        return;
+    }
+    for (int i = 0; i < NUM_NODES; i++){
+        freeTree(root->children[i]);
+    }
+    free(root);
 }
 /************************************************************************************************************/
 
@@ -93,7 +104,7 @@ int filesInDir(char* path){
     if ((dir = opendir (path)) == NULL){
         perror ("There was a problem opening the directory!\n");
         closedir(dir);
-        return EXIT_FAILURE;
+        return EXIT_FAILURE;    //AKA 1
     }
 
     while ((entry = readdir(dir)) != NULL){ //while the entry we are reading from the directory is not null
@@ -113,7 +124,7 @@ int filesInDir(char* path){
          }
     }
     closedir(dir);
-    return EXIT_SUCCESS;
+    return EXIT_SUCCESS;    //AKA 0
 }
 /* for some reason, this did not work in my filesInDir function
         //check if the entry is a sub-directory //recursive case
@@ -144,13 +155,15 @@ void * fillDictionary(char* dictFile){
     ssize_t bytesRead;
     char word [BUFFER_SIZE];
     int pos = 0;
+
+    node* root = (node *) malloc(sizeof (node));    //create a root node
     
-    while ((bytesRead = read (fd, buffer, BUFFER_SIZE - 1)) > 0){  //read returns 0 when there is an error in reading bytes from the open files
-        buffer[BUFFER_SIZE - 1] = '\0';
+    while ((bytesRead = read (fd, buffer, BUFFER_SIZE)) > 0){  //read fxn returns 0 when there is an error in reading bytes from the open files
         for (int i = 0; i < bytesRead; i++){
             if (buffer[i] == '\n'){
-                word[i] = '\0';
-                printf("%s\n", word);
+                word[pos] = '\0';
+                //printf("%s\n", word);
+                insertTree(root, word);
                 pos = 0;
             }
             else {
@@ -160,9 +173,52 @@ void * fillDictionary(char* dictFile){
         }
     }
     close(fd);
-    return NULL;
+    return root;
 }
 
+//spellchecks all the words in a text file
+int checkFile (node* dict_root, char* textFile){
+    int fd = open (textFile, O_RDONLY);
+
+    if (fd == -1){
+        perror ("Could not open text file!\n");
+        return EXIT_FAILURE;    //AKA 1
+    }
+
+    char buffer [BUFFER_SIZE]; //assuming the length of the words will not exceed 1024 characters (the longest english word is only 45 chars)
+    ssize_t bytesRead;
+    char word [BUFFER_SIZE];
+    int pos = 0;
+
+    int col = 1;
+    int line = 1;
+
+    while ((bytesRead = read (fd, buffer, BUFFER_SIZE)) > 0){
+        for (int i = 0; i < bytesRead; i++){
+            if (buffer[i] == '\n'){
+                line++;
+                col = 1;
+            }
+            else{
+                col++;
+            }
+            if (buffer[i] == ' ' || buffer[i] == '\t' || buffer[i] == '\n'){
+                word[pos] = '\0';
+                //printf("%s\n", word);
+                pos = 0;
+                if (searchTree (dict_root, word) == 1){  //if the word DOES NOT exist in the dictionary
+                    printf ("%s (%d,%d): %s\n", textFile, line, col, word);
+                }
+            }
+            else {
+                word[pos] = buffer[i];
+                pos++;
+            }
+        }
+}
+    close(fd);
+    return EXIT_SUCCESS;    //AKA 0
+};
 
 int main(int argc, char *argv[]) {    
     //filesInDir(argv[2]);
@@ -171,9 +227,11 @@ int main(int argc, char *argv[]) {
     //argv[2-inf]: directory path
     if(argc < 3) {
         fprintf(stderr, "Usage: %s <directory_path>\n", argv[0]);
-        exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE); //AKA 1
     }
     //filesInDir(argv[2]);
-    fillDictionary("./words.txt");
+    node * root = fillDictionary("./words.txt");
+    checkFile (root, "./test.txt");
+    freeTree(root);
     return 0;
 }
