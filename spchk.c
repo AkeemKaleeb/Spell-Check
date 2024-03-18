@@ -89,60 +89,6 @@ void freeTree (node * root){
 }
 /************************************************************************************************************/
 
-//When spchk is given a directory name as an argument, it will perform a recursive directory traversal
-//and check spelling in all files whose names end with “.txt”, but ignoring any files or directories whose
-//names begin with “.”
-
-//a function to return all the files in a specified directory whose names end with ".txt"
-int filesInDir(char* path){
-    DIR *dir;//creates an object of struct DIR
-    struct dirent * entry; //stores all the directory entries (ie, the files and subfolders in the directory)
-    //printf("Callling function filesInDir!\n");
-    //printf("Path: %s\n", path);
-
-    //checks if we're able to open the directory
-    if ((dir = opendir (path)) == NULL){
-        perror ("There was a problem opening the directory!\n");
-        closedir(dir);
-        return EXIT_FAILURE;    //AKA 1
-    }
-
-    while ((entry = readdir(dir)) != NULL){ //while the entry we are reading from the directory is not null
-        //skip any directory entries that begin with '.', including the links to self (".") and parent ("..")
-        if (entry->d_name[0] !='.'){
-            //this is the base case
-            if (entry->d_type == DT_REG && (strstr(entry->d_name, ".txt")!= NULL)){
-            printf ("%s!\n", entry->d_name);
-            }
-            //check if the entry is a sub-directory //recursive case
-            else if (entry->d_type == DT_DIR){
-                //recursive case to print all the directory entries in the sub-directory
-                char subpath[PATH_MAX];
-                snprintf(subpath, sizeof(subpath), "%s/%s", path, entry->d_name);
-                filesInDir(subpath);
-            }
-         }
-    }
-    closedir(dir);
-    return EXIT_SUCCESS;    //AKA 0
-}
-/* for some reason, this did not work in my filesInDir function
-        //check if the entry is a sub-directory //recursive case
-        else if (entry->d_type == DT_DIR){
-            //recursive case to print all the directory entries in the sub-directory
-            char* subpath; //we need to construct the directory path
-            subpath = malloc(strlen(path) + strlen(entry->d_name) + 2); //length of the current path, directory name, plus 2 for '/' and '\0'
-            
-            //construct the subpath
-            strcat(subpath, path);
-            strcat(subpath, "/");
-            strcat(subpath, entry->d_name); //we don't need to append '\0' because strcat appends it automatically
-
-            filesInDir(subpath);    //recursive function call
-            free(subpath);          //free the subpath
-        }
-*/
-
 void * fillDictionary(char* dictFile){
     int fd = open(dictFile, O_RDONLY); //file descriptor 
 
@@ -220,6 +166,60 @@ int checkFile (node* dict_root, char* textFile){
     return EXIT_SUCCESS;    //AKA 0
 };
 
+//When spchk is given a directory name as an argument, it will perform a recursive directory traversal
+//and check spelling in all files whose names end with “.txt”, but ignoring any files or directories whose
+//names begin with “.”
+
+//a function to return all the files in a specified directory whose names end with ".txt"
+int filesInDir(node* dict_root, char* path){
+    DIR *dir;//creates an object of struct DIR
+    struct dirent * entry; //stores all the directory entries (ie, the files and subfolders in the directory)
+    //printf("Callling function filesInDir!\n");
+    //printf("Path: %s\n", path);
+
+    //checks if we're able to open the directory
+    if ((dir = opendir (path)) == NULL){
+        perror ("There was a problem opening the directory!\n");
+        closedir(dir);
+        return EXIT_FAILURE;    //AKA 1
+    }
+
+    while ((entry = readdir(dir)) != NULL){ //while the entry we are reading from the directory is not null
+        //skip any directory entries that begin with '.', including the links to self (".") and parent ("..")
+        if (entry->d_name[0] !='.'){
+            //this is the base case
+            if (entry->d_type == DT_REG && (strstr(entry->d_name, ".txt")!= NULL)){
+            printf ("%s!\n", entry->d_name);
+            checkFile (dict_root, entry->d_name);
+            }
+            //check if the entry is a sub-directory //recursive case
+            else if (entry->d_type == DT_DIR){
+                //recursive case to print all the directory entries in the sub-directory
+                char subpath[PATH_MAX];
+                snprintf(subpath, sizeof(subpath), "%s/%s", path, entry->d_name);
+                filesInDir(dict_root, subpath);
+            }
+         }
+    }
+    closedir(dir);
+    return EXIT_SUCCESS;    //AKA 0
+}
+/* for some reason, this did not work in my filesInDir function
+        //check if the entry is a sub-directory //recursive case
+        else if (entry->d_type == DT_DIR){
+            //recursive case to print all the directory entries in the sub-directory
+            char* subpath; //we need to construct the directory path
+            subpath = malloc(strlen(path) + strlen(entry->d_name) + 2); //length of the current path, directory name, plus 2 for '/' and '\0'
+            
+            //construct the subpath
+            strcat(subpath, path);
+            strcat(subpath, "/");
+            strcat(subpath, entry->d_name); //we don't need to append '\0' because strcat appends it automatically
+
+            filesInDir(subpath);    //recursive function call
+            free(subpath);          //free the subpath
+        }
+*/
 int main(int argc, char *argv[]) {    
     //filesInDir(argv[2]);
     //argv[0]: spchk
@@ -229,9 +229,9 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Usage: %s <directory_path>\n", argv[0]);
         exit(EXIT_FAILURE); //AKA 1
     }
-    //filesInDir(argv[2]);
     node * root = fillDictionary("./words.txt");
-    checkFile (root, "./test.txt");
+    //checkFile (root, "./test.txt");
+    filesInDir(root, argv[2]);
     freeTree(root);
     return 0;
 }
