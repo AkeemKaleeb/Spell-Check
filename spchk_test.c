@@ -17,7 +17,7 @@ int main (int argc, char * argv[]){
     //basic text file with common English words, all spelled correctly
     //expected output: the program should run smoothly without any errors
     test (1);       
-    */
+
     /*********TEST 2:*********/
     //check what happens when there are no text files in the specified directory
     //expected output: nothing should be printed out
@@ -46,6 +46,5 @@ int main (int argc, char * argv[]){
     //we should use a file containing words with incorrect capitilzation (ie, MacDonalds or MACDONALDS should work, but not macdonalds)
     //they should all be reported
     //test (7);
-    */
-
+    return EXIT_SUCCESS;
 }
