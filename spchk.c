@@ -4,18 +4,18 @@
 
 // DONE: Read Dictionary File
 // DONE: Fill Trie - Based on term "Retrieval"
-// Locate Directory
+// DONE: Locate Directory
 // DONE: Read Directory Text Files
 // DONE: Remove trailing punctuation
 // DONE: Compare word against dictionary words
 // DONE: Check hypenated words, one on each side
 // Compare with capitalization if it does not match
 // DONE: Report errors based on incorrect spelling
-// Include line and column number
+// DONE: Include line and column number
 
-// Find and open all specified files including directory traversal
-// Reading the file and generating a sequence of position annotated words
-// Checking whether a word is contained in the dictionary
+// DONE: Find and open all specified files including directory traversal
+// DONE: Reading the file and generating a sequence of position annotated words
+// DONE: Checking whether a word is contained in the dictionary
 
 // Program Start
 #include <stdio.h>
@@ -24,9 +24,12 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <ctype.h>
 
-#define NUM_CHAR 256            // Capital, Lowercase, space, new line
-#define BUFFER_SIZE 1024        // Read buffer to reduce SYS Calls
+#define NUM_CHAR 256        // Capital, Lowercase, space, new line
+#define BUFFER_SIZE 256     // Read buffer to reduce SYS Calls
 
 #define DICTFILE "words.txt"
 #define TEXTFILE "test.txt"
@@ -104,9 +107,9 @@ void printTrie_Recursive(dictNode *node, unsigned char *prefix, int length, int 
     for (int i = 0; i < NUM_CHAR; i++)
     { // Traverse all possible nodes
         if (node->children[i] != NULL)
-        {                                                                               // Check if a node has something worth checking
-            newPrefix[length] = i;                                                      // Sets the value to be checked
-            printTrie_Recursive(node->children[i], newPrefix, length + 1, wordNumber);  // Recursively loop through the trie
+        {                                                                              // Check if a node has something worth checking
+            newPrefix[length] = i;                                                     // Sets the value to be checked
+            printTrie_Recursive(node->children[i], newPrefix, length + 1, wordNumber); // Recursively loop through the trie
         }
     }
 }
@@ -120,7 +123,7 @@ void printTrie(dictNode *root)
         return;
     }
 
-    int wordNumber = 1;     // Start with the first word
+    int wordNumber = 1;                              // Start with the first word
     printTrie_Recursive(root, NULL, 0, &wordNumber); // Call to recursive print function
 }
 
@@ -146,17 +149,20 @@ bool searchTrie(dictNode *root, char *signedText)
 }
 
 // Function to recursively free the Trie
-void freeTrie(dictNode *node) {
-    if(node == NULL) {
+void freeTrie(dictNode *node)
+{
+    if (node == NULL)
+    {
         return;
     }
 
-    for(int i = 0; i < NUM_CHAR; i++) {
+    for (int i = 0; i < NUM_CHAR; i++)
+    {
         freeTrie(node->children[i]);
     }
 
     free(node);
-} 
+}
 
 // #endregion
 
@@ -165,30 +171,58 @@ void freeTrie(dictNode *node) {
 // Function to fill the dictionary Trie
 // True implies dictionary was filled successfully
 // False implies dictionary was not filled successfully
-bool fillDictionary(const char* dictPath, dictNode **root) {
-    int dictionary_FD = open(dictPath, O_RDONLY);               // Open the dictionary in read only mode
+bool fillDictionary(const char *dictPath, dictNode **root)
+{
+    int dictionary_FD = open(dictPath, O_RDONLY); // Open the dictionary in read only mode
 
-    if(dictionary_FD == -1) {                                   // Prints an error if the dictionary cannot be opened
+    if (dictionary_FD == -1)
+    { // Prints an error if the dictionary cannot be opened
         perror("Dictionary could not be opened!\n");
         return EXIT_FAILURE;
     }
 
-    char buffer[BUFFER_SIZE];           // Buffer to reduce sys calls
-    int bytesRead;                      // number of bytes read so far
-    char word[BUFFER_SIZE];             // Buffer to store a single word
-    int wordLength = 0;                 // Length of the word stored
+    char buffer[BUFFER_SIZE]; // Buffer to reduce sys calls
+    int bytesRead;            // number of bytes read so far
+    char word[BUFFER_SIZE];   // Buffer to store a single word
+    int wordLength = 0;       // Length of the word stored
 
-    while((bytesRead = read(dictionary_FD, buffer, BUFFER_SIZE)) > 0) {     // Loop through the file
-        for(int i = 0; i < bytesRead; i++) {    // Loop through the word
-            if(buffer[i] == '\n') {             // End of word, insert to Trie
-                word[wordLength] = '\0';        // Terminate the word
-                if(wordLength > 0) {
-                    insertTrie(root, word);     // Insert complete word to Trie
-                    wordLength = 0;             // Reset word length for next word
+    while ((bytesRead = read(dictionary_FD, buffer, BUFFER_SIZE)) > 0)
+    { 
+        // Default input
+        for (int i = 0; i < bytesRead; i++)
+        { // Loop through the word
+            if (buffer[i] == '\n')
+            {                            // End of word, insert to Trie
+                word[wordLength] = '\0'; // Terminate the word
+                if (wordLength > 0)
+                {
+                    insertTrie(root, word); // Insert complete word to Trie default
+
+                    // Add entry with first letter capitalized
+                    char capitalizedWord[BUFFER_SIZE];
+                    capitalizedWord[0] = toupper(word[0]); // Capitalize the first letter
+                    for (int j = 1; j < wordLength; j++)
+                    {
+                        capitalizedWord[j] = word[j]; // Copy the rest of the word as is
+                    }
+                    capitalizedWord[wordLength] = '\0'; // Terminate the word
+                    insertTrie(root, capitalizedWord);  // Insert capitalized word to Trie
+
+                    // Add entry with all letters capitalized
+                    char allCapitalWord[BUFFER_SIZE];
+                    for (int j = 0; j < wordLength; j++)
+                    {
+                        allCapitalWord[j] = toupper(word[j]); // Capitalize all letters
+                    }
+                    allCapitalWord[wordLength] = '\0'; // Terminate the word
+                    insertTrie(root, allCapitalWord);  // Insert all capitalized word to Trie
+
+                    wordLength = 0;         // Reset word length for next word
                 }
             }
-            else {
-                word[wordLength++] = buffer[i];     // Append the next character to the word
+            else
+            {
+                word[wordLength++] = buffer[i]; // Append the next character to the word
             }
         }
     }
@@ -199,7 +233,8 @@ bool fillDictionary(const char* dictPath, dictNode **root) {
 }
 
 // Function that checks an individual text file's words against a provided dictionary
-bool checkFile(const char* textPath, dictNode *root) {
+bool spellCheckFile(const char *textPath, dictNode *root)
+{
     int text_FD = open(textPath, O_RDONLY);                 // Open the dictionary in read only mode
 
     if(text_FD == -1) {                                     // Prints an error if the text file cannot be opened
@@ -212,8 +247,19 @@ bool checkFile(const char* textPath, dictNode *root) {
     char word[BUFFER_SIZE];             // Buffer to store a single word
     int wordLength = 0;                 // Length of the word stored
 
+    int row = 1;    // Row number of error
+    int col = 0;    // Column number of error
+
     while((bytesRead = read(text_FD, buffer, BUFFER_SIZE)) > 0) {       // Loop through the file
         for(int i = 0; i < bytesRead; i++) {    // Loop through the word
+            if(buffer[i] == '\n') {             // Increment row counter every new line
+                row++;
+                col = 1;
+            }
+            else {
+                col++;
+            }
+            
             // End of word, insert to Trie
             if(!(('a' <= buffer[i] && 'z' >= buffer[i]) ||
                 ('A' <= buffer[i] && 'Z' >= buffer[i]))) 
@@ -223,7 +269,7 @@ bool checkFile(const char* textPath, dictNode *root) {
                     bool wordExists = searchTrie(root, word);       // Search the Trie for the existence of the word
 
                     if(!wordExists) {                               // If the word does not exist
-                        printf("%s (): %s\n", textPath, word);
+                        printf("%s (%d, %d): %s\n", textPath, row, col - wordLength, word);
                     }
 
                     wordLength = 0;                                 // Reset word length for next word
@@ -235,38 +281,102 @@ bool checkFile(const char* textPath, dictNode *root) {
         }
     }
 
+    // Check the last word in the file
+    if (wordLength > 0) {
+        word[wordLength] = '\0';                    // Terminate the last word
+        bool wordExists = searchTrie(root, word);   // Search the Trie for the last word
+
+        if (!wordExists) {                          // If the last word does not exist
+            printf("%s (%d, %d): %s\n", textPath, row, col - wordLength, word);
+        }
+    }
+
     close(text_FD);
     return true;
 }
 
-// #endregion
+// a function to return all the files in a specified directory whose names end with ".txt", but don't begin with "."
+int filesInDir(char *path, dictNode *root)
+{
+    DIR *dir;
+    struct dirent *entry;
+    struct stat statbuf;
 
-/***************************************************************************************************/
-/********************************THE ABOVE CODE WORKS AS INTENDED***********************************/
-/***************************************************************************************************/
+    if (stat(path, &statbuf) == -1)
+    {
+        perror("Error in stat");
+        return EXIT_FAILURE;
+    }
+    if (S_ISREG(statbuf.st_mode))
+    {
+        spellCheckFile(path, root);
+        return EXIT_SUCCESS;
+    }
 
+    if ((dir = opendir(path)) == NULL)
+    {
+        perror("There was a problem opening the directory!\n");
+        return EXIT_FAILURE;
+    }
 
+    while ((entry = readdir(dir)) != NULL)
+    {
+        // Skip "." and ".." directories
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+        {
+            continue;
+        }
 
+        char fullpath[BUFFER_SIZE];
+        snprintf(fullpath, BUFFER_SIZE + 1, "%s/%s", path, entry->d_name);
 
+        if (stat(fullpath, &statbuf) == -1)
+        {
+            perror("Error in stat");
+            continue;
+        }
 
-void testCases(dictNode *root) {
-    printf("search for Cattle: %d\n", searchTrie(root, "Cattle"));
-    printf("search for Link: %d\n", searchTrie(root, "Link"));
-    printf("search for Apple: %d\n", searchTrie(root, "Apple"));
-    printf("search for apple: %d\n", searchTrie(root, "apple"));
-    printf("search for efpa: %d\n", searchTrie(root, "efpa"));
+        if (S_ISDIR(statbuf.st_mode))
+        {
+            // printf("DIRECTORY PATH: %s\n", fullpath);
+            filesInDir(fullpath, root);
+        }
+        else if (S_ISREG(statbuf.st_mode))
+        {
+            // printf("Regular file: %s\n", fullpath);
+            spellCheckFile(fullpath, root);
+        }
+    }
+
+    closedir(dir);
+    return EXIT_SUCCESS;
 }
 
-int main()
+// #endregion
+
+
+int main(int argc, char *argv[])
 {
-    dictNode *root = NULL;
+    // ./spchk ../dict ../testfile
+    // argv[0] argv[1] argv[2 -> inf]
 
-    fillDictionary(DICTFILE, &root);
-    //printTrie(root);
-    //testCases(root);
-    checkFile(TEXTFILE, root);
+    if (argc < 2)
+    {
+        perror("Error Usage: ./spchk ../dict ../testfiles");
+        exit(EXIT_FAILURE);
+    }
 
-    freeTrie(root);
+    char *dictPath = argv[1];
 
-    return EXIT_SUCCESS;
+    dictNode *root = NULL;           // Instantiate Dictionary
+    fillDictionary(dictPath, &root); // Fill Dictionary
+
+    for (int i = 2; i < argc; i++)
+    {
+        filesInDir((char *)argv[i], root); // Check all subdirectories and text files for spelling errors
+    }
+
+    freeTrie(root); // Free the dictionary
+
+    return EXIT_SUCCESS; // Exit the program
 }
