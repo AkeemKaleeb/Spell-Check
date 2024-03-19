@@ -21,8 +21,8 @@ int main (int argc, char * argv[]){
 
     /*********TEST 2:*********/
     //we should test a file with a lot of punctuation (!@#$%^&*(){})
-    //expected output: the words should not be reported as incorrect, even with the punctuation
-    test (2);       //normal punctuation    //jane eyre file
+    //expected output: the punctuation in the words should not be reported as incorrect
+    test (2);       //normal punctuation    //jane eyre file    
 
     /*********TEST 3:*********/
     //we should test a file with a lot of punctuation (!@#$%^&*(){})
