@@ -4,7 +4,7 @@ Professor Menendez
 Programming Assignment #2
 02/26/2024
 
-/**SpellCheckProject**/
+##SpellCheckProject##
 This project will create a spell checker to detect which words are spelt incorrectly given a dictionary of words and a file or multiple to read from and traverse
 
 Usage: type "make spchk_test" to compile spchk_test.c. then type "./spchk_test" to run our test cases and see the functionality of our spellcheck program.
