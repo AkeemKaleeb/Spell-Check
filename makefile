@@ -1,13 +1,13 @@
 CC=gcc
 CFLAGS=-g -Wall -fsanitize=address -std=c99
 
+all: spchk myspchk spchk_test
+
+spchk_test: spchk_test.c spchk.c
+	$(CC) $(CFLAGS) $^ -o $@
+	
 spchk: spchk.c
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) $^ -o $@
 
-#.PHONY: run
-#run: spchk
-#	./spchk "words.txt" "test.txt"
-
-#.PHONY: clean
-#clean:
-#	rm -f spchk
+myspchk: myspchk.c
+	$(CC) $(CFLAGS) $^ -o $@
