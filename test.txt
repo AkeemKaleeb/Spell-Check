@@ -1,12 +1,14 @@
-This is a tset of how wlel my spchk porgram is wkoring.
+this is a tset of how wlel my spchk porgram is wkoring.
+
+(left
+right)
+m)iddle
 
 ALL CAPS SHOULD BE ALLOWED.
 
-all lower case should be allowed.
+all lower case should be allowed if the word exists.
 
-First Letter Capitalization Should Be Allowed;
-
-Hyphenated-words should be allowed.
+hyphenated-words should be allowed.
 
 wRoNg sPeLlInG cAsEs sHoUlD nOt bE aLlOWeD.
 
