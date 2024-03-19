@@ -1,237 +1,376 @@
+// MUST USE POSIX read() write() open() close() etc.
+// TODO:
+// ./spchk ../dict ../testfile
+
+// DONE: Read Dictionary File
+// DONE: Fill Trie - Based on term "Retrieval"
+// DONE: Locate Directory
+// DONE: Read Directory Text Files
+// DONE: Remove trailing punctuation
+// DONE: Compare word against dictionary words
+// DONE: Check hypenated words, one on each side
+// Compare with capitalization if it does not match
+// DONE: Report errors based on incorrect spelling
+// DONE: Include line and column number
+
+// Find and open all specified files including directory traversal
+// DONE: Reading the file and generating a sequence of position annotated words
+// DONE: Checking whether a word is contained in the dictionary
+
+// Program Start
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include <stdbool.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <dirent.h>
+#include <sys/stat.h>
 #include <ctype.h>
 
-#define NUM_NODES 128        //assume all characters are in ASCI 128
-#define BUFFER_SIZE 1024    //limit the number of system calls
-#define PATH_MAX 4096       //max number of characters in a path name
-//tree data structure
-/************************************************************************************************************/
-struct TreeNode {
-    //each node has 26 children, corresponding to each letter of the alphabet
-    struct TreeNode * children[NUM_NODES];
-    int isLeafNode; //0 means FALSE and 1 means TRUE - if isLeafNode is true, that means this node represents the end of a word
-    char value; //stores the actual node/character value
-} typedef node;
+#define NUM_CHAR 256            // Capital, Lowercase, space, new line
+#define BUFFER_SIZE 1024        // Read buffer to reduce SYS Calls
 
-//creates a new node
-node* makeNode (char c){
-    node* newNode = (node*) malloc (sizeof(node)); //what's the difference between using malloc and calloc over here?
-                                                    //the latter fills the allocated memory wih 0s
-    for (int i = 0; i < NUM_NODES; i++){
-        newNode->children[i] = NULL;
+#define DICTFILE "words.txt"
+#define TEXTFILE "test.txt"
+
+// #region TRIE
+
+typedef struct trienode
+{
+    struct trienode *children[NUM_CHAR];
+    bool terminal; // node is the end of a word
+} dictNode;
+
+// function to create a new node in the trie
+// allocates space for the new node and the children to NULL values
+dictNode *createNode()
+{
+    dictNode *newNode = malloc(sizeof(*newNode)); // allocate space for a new node
+
+    for (int i = 0; i < NUM_CHAR; i++)
+    {
+        newNode->children[i] = NULL; // initialize the new node to null characters
     }
-    newNode->isLeafNode = 0;    //not a leaf node
-    newNode->value = c;         //stores the letter
-    return newNode;
+
+    newNode->terminal = false; // new node will not be terminal by default
+    return newNode;            // return the new node
 }
-//frees a single node
-void freeNode (node * targetNode){
-    for (int i = 0; i < NUM_NODES; i++){
-        if (targetNode->children[i] != NULL){
-            free (targetNode->children[i]);
+
+// function to insert a new node into the trie
+// false implies the node already exists
+// true implies the node was inserted
+bool insertTrie(dictNode **root, char *signedText)
+{
+    if (*root == NULL)
+    {
+        *root = createNode(); // Create a new root if one doesn't exist
+    }
+
+    unsigned char *text = (unsigned char *)signedText; // Prevents negative index in table
+    dictNode *tmp = *root;
+    int length = strlen(signedText);
+
+    for (int i = 0; i < length; i++)
+    {
+        if (tmp->children[text[i]] == NULL)
+        { // Create a new node if it does not exist
+            tmp->children[text[i]] = createNode();
+        }
+        tmp = tmp->children[text[i]]; // Moves the temp pointer to look at the appropriate child node
+    }
+
+    if (tmp->terminal)
+    {
+        return false; // checks if the word already exists
+    }
+    else
+    {
+        tmp->terminal = true; // there was a node for this word, make it terminal
+        return true;
+    }
+}
+
+// Recursive print function to print out the word in a trie
+void printTrie_Recursive(dictNode *node, unsigned char *prefix, int length, int *wordNumber)
+{
+    unsigned char newPrefix[length + 2]; // One more symbol and null character
+    memcpy(newPrefix, prefix, length);   // Copies the previous word to the new prefix with two extra spaces
+    newPrefix[length + 1] = 0;           // null terminate the string
+
+    if (node->terminal)
+    { // Base Case, word complete
+        printf("WORD [%d]: %s\n", *wordNumber, prefix);
+        (*wordNumber)++;
+    }
+
+    for (int i = 0; i < NUM_CHAR; i++)
+    { // Traverse all possible nodes
+        if (node->children[i] != NULL)
+        {                                                                               // Check if a node has something worth checking
+            newPrefix[length] = i;                                                      // Sets the value to be checked
+            printTrie_Recursive(node->children[i], newPrefix, length + 1, wordNumber);  // Recursively loop through the trie
         }
     }
-    free(targetNode);
 }
-//function to print all the words in a tree
-void printTree(node * root){
-    if (root == NULL){
+
+// Function to print out the trie in ASCII-betical order
+void printTrie(dictNode *root)
+{
+    if (root == NULL)
+    { // Special case for when the TRIE is empty
+        printf("TRIE EMPTY\n");
         return;
     }
-    node* current = root;
-    printf ("%c -> ", current->value);
-    for (int i = 0; i < NUM_NODES; i++){
-        printTree(current->children[i]);
-    }
-}
-//function to insert an entire word into the tree
-node * insertTree (node * root, char * word){
-    node* current = root;
-    for (int i = 0; word[i] != '\0'; i++){
-        int index = (int) word[i] - '0'; //this should return the position of the letter in the children array
-        if (current->children[index] == NULL){
-            //create node
-            current->children[index] = makeNode (word[i]);
-        }
-        current = current->children[index];
-    }
-    current->isLeafNode = 1;   //set the boolean equal to true if this is the last letter/node
-    return root;
-}
-//searches the dictionary for a single word
-int searchTree (node *root, char * word){
-    node* current = root;
-    int size = sizeof(word) - 1; //since the word also contains '\0'
 
-    for (int i = 0; i < size; i++){
-        int index = tolower(word[i]) - '0'; //this should return the position of the letter in the children array
-        if (current->children[index] == NULL){
-            return EXIT_FAILURE;    //the node does not exist //this is not a word  //returns 1
-        }
-        current = current->children[index];
-    }
-    return EXIT_SUCCESS;    //which is 0
+    int wordNumber = 1;     // Start with the first word
+    printTrie_Recursive(root, NULL, 0, &wordNumber); // Call to recursive print function
 }
-//we need to free the entire Tree Data Structure
-void freeTree (node * root){
-    if (root == NULL){
+
+// Function to search if the word exists within the trie
+// True implies the word exists
+// False implies the word does not exist
+bool searchTrie(dictNode *root, char *signedText)
+{
+    unsigned char *text = (unsigned char *)signedText; // Prevents negative indexes in the table
+    int length = strlen(signedText);                   // How long is the word we are searching for
+    dictNode *tmp = root;                              // Temporary node, initialized to the root
+
+    for (int i = 0; i < length; i++)
+    { // Search trie character by character
+        if (tmp->children[text[i]] == NULL)
+        {                 // Check if the ith character in the word exists
+            return false; // Return false if the word does not exist
+        }
+        tmp = tmp->children[text[i]]; // Search the next node based on the next character
+    }
+
+    return tmp->terminal; // Returns true only if the final node is terminal: the word exists and is not a substring of another word
+}
+
+// Function to recursively free the Trie
+void freeTrie(dictNode *node) {
+    if(node == NULL) {
         return;
     }
-    for (int i = 0; i < NUM_NODES; i++){
-        freeTree(root->children[i]);
-    }
-    free(root);
-}
-/************************************************************************************************************/
 
-void * fillDictionary(char* dictFile){
-    int fd = open(dictFile, O_RDONLY); //file descriptor 
-
-    if (fd == -1){
-        perror ("Could not open dictionary file!\n");
-        return NULL;
-    }
-    
-    char buffer [BUFFER_SIZE]; //assuming the length of the words will not exceed 1024 characters (the longest english word is only 45 chars)
-    ssize_t bytesRead;
-    char word [BUFFER_SIZE];
-    int pos = 0;
-
-    node* root = (node *) malloc(sizeof (node));    //create a root node
-    
-    while ((bytesRead = read (fd, buffer, BUFFER_SIZE)) > 0){  //read fxn returns 0 when there is an error in reading bytes from the open files
-        for (int i = 0; i < bytesRead; i++){
-            if (buffer[i] == '\n'){
-                word[pos] = '\0';
-                //printf("%s\n", word);
-                insertTree(root, word);
-                pos = 0;
-            }
-            else {
-                word[pos] = buffer[i];
-                pos++;
-            }
-        }
-    }
-    close(fd);
-    return root;
-}
-
-//spellchecks all the words in a text file
-int checkFile (node* dict_root, char* textFile){
-    int fd = open (textFile, O_RDONLY);
-
-    if (fd == -1){
-        perror ("Could not open text file!\n");
-        return EXIT_FAILURE;    //AKA 1
+    for(int i = 0; i < NUM_CHAR; i++) {
+        freeTrie(node->children[i]);
     }
 
-    char buffer [BUFFER_SIZE]; //assuming the length of the words will not exceed 1024 characters (the longest english word is only 45 chars)
-    ssize_t bytesRead;
-    char word [BUFFER_SIZE];
-    int pos = 0;
+    free(node);
+} 
 
-    int col = 1;
-    int line = 1;
+// #endregion
 
-    while ((bytesRead = read (fd, buffer, BUFFER_SIZE)) > 0){
-        for (int i = 0; i < bytesRead; i++){
-            if (buffer[i] == '\n'){
-                line++;
-                col = 1;
-            }
-            else{
-                col++;
-            }
-            if (buffer[i] == ' ' || buffer[i] == '\t' || buffer[i] == '\n'){
-                word[pos] = '\0';
-                //printf("%s\n", word);
-                pos = 0;
-                if (searchTree (dict_root, word) == 1){  //if the word DOES NOT exist in the dictionary
-                    printf ("%s (%d,%d): %s\n", textFile, line, col, word);
+// #region FILES
+
+// Function to fill the dictionary Trie
+// True implies dictionary was filled successfully
+// False implies dictionary was not filled successfully
+bool fillDictionary(const char* dictPath, dictNode **root) {
+    int dictionary_FD = open(dictPath, O_RDONLY);               // Open the dictionary in read only mode
+
+    if(dictionary_FD == -1) {                                   // Prints an error if the dictionary cannot be opened
+        perror("Dictionary could not be opened!\n");
+        return EXIT_FAILURE;
+    }
+
+    char buffer[BUFFER_SIZE];           // Buffer to reduce sys calls
+    int bytesRead;                      // number of bytes read so far
+    char word[BUFFER_SIZE];             // Buffer to store a single word
+    int wordLength = 0;                 // Length of the word stored
+
+    while((bytesRead = read(dictionary_FD, buffer, BUFFER_SIZE)) > 0) {     // Loop through the file
+        for(int i = 0; i < bytesRead; i++) {    // Loop through the word
+            if(buffer[i] == '\n') {             // End of word, insert to Trie
+                word[wordLength] = '\0';        // Terminate the word
+                if(wordLength > 0) {
+                    insertTrie(root, word);     // Insert complete word to Trie
+                    //insert the capitilized form of the word
+                    char word_CAPS[wordLength];
+                    for (int i = 0; i < wordLength; i++) {
+                        word_CAPS [i] = toupper(word[i]);
+                    }
+                    insertTrie (root, word_CAPS);
+                    //insert the word with only the first letter capitilized
+                    char words_INIT[wordLength];
+                    strcpy (words_INIT, word);
+                    words_INIT[0] = toupper (word[0]);
+                    insertTrie (root, words_INIT);
+                    // Reset word length for next word
+                    wordLength = 0;
                 }
             }
             else {
-                word[pos] = buffer[i];
-                pos++;
+                word[wordLength++] = buffer[i];     // Append the next character to the word
             }
         }
-}
-    close(fd);
-    return EXIT_SUCCESS;    //AKA 0
-};
-
-//When spchk is given a directory name as an argument, it will perform a recursive directory traversal
-//and check spelling in all files whose names end with “.txt”, but ignoring any files or directories whose
-//names begin with “.”
-
-//a function to return all the files in a specified directory whose names end with ".txt"
-int filesInDir(node* dict_root, char* path){
-    DIR *dir;//creates an object of struct DIR
-    struct dirent * entry; //stores all the directory entries (ie, the files and subfolders in the directory)
-    //printf("Callling function filesInDir!\n");
-    //printf("Path: %s\n", path);
-
-    //checks if we're able to open the directory
-    if ((dir = opendir (path)) == NULL){
-        perror ("There was a problem opening the directory!\n");
-        closedir(dir);
-        return EXIT_FAILURE;    //AKA 1
     }
 
-    while ((entry = readdir(dir)) != NULL){ //while the entry we are reading from the directory is not null
-        //skip any directory entries that begin with '.', including the links to self (".") and parent ("..")
-        if (entry->d_name[0] !='.'){
-            //this is the base case
-            if (entry->d_type == DT_REG && (strstr(entry->d_name, ".txt")!= NULL)){
-            printf ("%s!\n", entry->d_name);
-            checkFile (dict_root, entry->d_name);
-            }
-            //check if the entry is a sub-directory //recursive case
-            else if (entry->d_type == DT_DIR){
-                //recursive case to print all the directory entries in the sub-directory
-                char subpath[PATH_MAX];
-                snprintf(subpath, sizeof(subpath), "%s/%s", path, entry->d_name);
-                filesInDir(dict_root, subpath);
-            }
-         }
-    }
-    closedir(dir);
-    return EXIT_SUCCESS;    //AKA 0
+    close(dictionary_FD);
+
+    return true;
 }
-/* for some reason, this did not work in my filesInDir function
-        //check if the entry is a sub-directory //recursive case
-        else if (entry->d_type == DT_DIR){
-            //recursive case to print all the directory entries in the sub-directory
-            char* subpath; //we need to construct the directory path
-            subpath = malloc(strlen(path) + strlen(entry->d_name) + 2); //length of the current path, directory name, plus 2 for '/' and '\0'
+
+// Function that checks an individual text file's words against a provided dictionary
+bool checkFile(const char* textPath, dictNode *root) {
+    int text_FD = open(textPath, O_RDONLY);                 // Open the dictionary in read only mode
+
+    if(text_FD == -1) {                                     // Prints an error if the text file cannot be opened
+        perror("Dictionary could not be opened!\n");
+        return EXIT_FAILURE;
+    }
+
+    char buffer[BUFFER_SIZE];           // Buffer to reduce sys calls
+    int bytesRead;                      // number of bytes read so far
+    char word[BUFFER_SIZE];             // Buffer to store a single word
+    int wordLength = 0;                 // Length of the word stored
+
+    int row = 1;    // Row number of error
+    int col = 0;    // Column number of error
+
+    while((bytesRead = read(text_FD, buffer, BUFFER_SIZE)) > 0) {       // Loop through the file
+        for(int i = 0; i < bytesRead; i++) {    // Loop through the word
+            if(buffer[i] == '\n') {             // Increment row counter every new line
+                row++;
+                col = 1;
+            }
+            else {
+                col++;
+            }
             
-            //construct the subpath
-            strcat(subpath, path);
-            strcat(subpath, "/");
-            strcat(subpath, entry->d_name); //we don't need to append '\0' because strcat appends it automatically
+            // End of word, insert to Trie
+            if(!(('a' <= buffer[i] && 'z' >= buffer[i]) ||
+                ('A' <= buffer[i] && 'Z' >= buffer[i]))) 
+            {             
+                word[wordLength] = '\0';        // Terminate the word
+                if(wordLength > 0) {
+                    bool wordExists = searchTrie(root, word);       // Search the Trie for the existence of the word
 
-            filesInDir(subpath);    //recursive function call
-            free(subpath);          //free the subpath
+                    if(!wordExists) {                               // If the word does not exist
+                        printf("%s (%d, %d): %s\n", textPath, row, col - wordLength, word);
+                    }
+
+                    wordLength = 0;                                 // Reset word length for next word
+                }
+            }
+            else {
+                word[wordLength++] = buffer[i];     // Append the next character to the word
+            }
         }
-*/
-int main(int argc, char *argv[]) {    
-    //filesInDir(argv[2]);
-    //argv[0]: spchk
-    //argv[1]: dictionary path
-    //argv[2-inf]: directory path
-    if(argc < 3) {
-        fprintf(stderr, "Usage: %s <directory_path>\n", argv[0]);
-        exit(EXIT_FAILURE); //AKA 1
     }
-    node * root = fillDictionary("./words.txt");
-    //checkFile (root, "./test.txt");
-    filesInDir(root, argv[2]);
-    freeTree(root);
-    return 0;
+
+    // Check the last word in the file
+    if (wordLength > 0) {
+        word[wordLength] = '\0';                    // Terminate the last word
+        bool wordExists = searchTrie(root, word);   // Search the Trie for the last word
+
+        if (!wordExists) {                          // If the last word does not exist
+            printf("%s (%d, %d): %s\n", textPath, row, col - wordLength, word);
+        }
+    }
+
+    close(text_FD);
+    return true;
+}
+
+//a function to return all the files in a specified directory whose names end with ".txt", but don't begin with "."
+int filesInDir(char* path, dictNode *root){
+    DIR *dir;
+    struct dirent *entry;
+    struct stat statbuf;
+
+    if (stat(path, &statbuf) == -1){
+        perror("Error in stat");
+        return EXIT_FAILURE;
+    }
+    if (S_ISREG(statbuf.st_mode)){
+        checkFile(path, root);
+        return EXIT_SUCCESS;
+    }
+
+    if ((dir = opendir(path)) == NULL){
+        perror("There was a problem opening the directory!\n");
+        return EXIT_FAILURE;
+    }
+
+    while ((entry = readdir(dir)) != NULL){
+        // Skip "." and ".." directories
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){
+            continue;
+        }
+
+        char fullpath[BUFFER_SIZE];
+        snprintf(fullpath, BUFFER_SIZE, "%s/%s", path, entry->d_name);
+
+        if (stat(fullpath, &statbuf) == -1){
+            perror("Error in stat");
+            continue;
+        }
+
+        if (S_ISDIR(statbuf.st_mode)){
+            //printf("DIRECTORY PATH: %s\n", fullpath);
+            filesInDir(fullpath, root);
+        } else if (S_ISREG(statbuf.st_mode)){
+            //printf("Regular file: %s\n", fullpath);
+            checkFile(fullpath, root);
+        }
+    }
+
+    closedir(dir);
+    return EXIT_SUCCESS;
+}
+
+// #endregion
+
+/***************************************************************************************************/
+/********************************THE ABOVE CODE WORKS AS INTENDED***********************************/
+/***************************************************************************************************/
+
+int main(int argc, char *argv[])
+{
+    // ./spchk ../dict ../testfile
+    // argv[0] argv[1] argv[2 -> inf]
+
+    if(argc < 2) {
+        perror("Error Usage: ./spchk ../dict ../testfiles");
+        exit(EXIT_FAILURE);
+    }
+
+    char* dictPath = argv[1];
+
+    dictNode *root = NULL;                  // Instantiate Dictionary
+    fillDictionary(dictPath, &root);        // Fill Dictionary
+
+    for(int i = 2; i < argc; i++) {
+        filesInDir((char*)argv[i], root);   // Check all subdirectories and text files for spelling errors
+    }
+    
+    freeTrie(root);                         // Free the dictionary
+
+    return EXIT_SUCCESS;                    // Exit the program
+}
+
+//helper function which takes a word and removes trailing punctuation
+//from the beggining of a word, it will remove ' " ( { [ 
+//from the end of a word, it will remove ' " ) } ] 
+//if there is a hyphen, it will split the words into two
+void removePunct (char word []){
+    int length = strlen (word); 
+    char return_word [length]; //assuming the length of the return word won't exceed the length of the input word
+    int return_index = 0;
+    
+    for (int i = 0; i != '\0'; i++){
+        //if the character is a punctuation mark at the begginning of a word
+        if (i == 0 && (word[i] == '\'' || word[i] == '\"'|| word[i] == '('|| word[i] == '{'|| word[i] == '[')){
+            continue;
+        }
+        //if the character is a punctuation mark at the end of a word
+        if (i == length - 1 && (word[i] == '\'' || word[i] == '\"'|| word[i] == ')'|| word[i] == '}'|| word[i] == ']')){
+            break;
+        }
+        return_word[return_index++] = word[i];
+    }
+    return_word[return_index] = '\0';
 }
